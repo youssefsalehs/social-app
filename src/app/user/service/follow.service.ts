@@ -9,7 +9,6 @@ import followRepository, { FollowRepository } from "../repository/follow.repo";
 export class FollowService {
   private userRepository: UserRepository = userRepository;
   private followRepository: FollowRepository = followRepository;
-
   follow = async (followDto: FollowDto) => {
     const { follower, following } = followDto;
 
@@ -29,7 +28,7 @@ export class FollowService {
       follower: new Types.ObjectId(follower),
       following: new Types.ObjectId(following),
     });
-    console.log(existing);
+
     if (existing) {
       if (existing.status === FollowStatus.ACCEPTED) {
         throw new AppError("You are already following this user", 400);
@@ -49,6 +48,7 @@ export class FollowService {
       status,
     });
 
+    // FIXED: Added await and Promise.all for consistency
     if (status === FollowStatus.ACCEPTED) {
       await Promise.all([
         this.userRepository.updateFollowersCount(
@@ -61,11 +61,44 @@ export class FollowService {
         ),
       ]);
     }
-    console.log(status);
 
     return { status };
   };
 
+  respondToRequest = async (respondFollow: RespondFollow) => {
+    const followRequest = await this.followRepository.getOne({
+      follower: respondFollow.follower,
+      following: respondFollow.following,
+      status: FollowStatus.PENDING,
+    });
+
+    if (!followRequest) {
+      throw new Error("Follow request not found or already handled");
+    }
+
+    if (respondFollow.action === "accept") {
+      followRequest.status = FollowStatus.ACCEPTED;
+      await followRequest.save();
+
+      await Promise.all([
+        this.userRepository.updateFollowersCount(
+          new Types.ObjectId(followRequest.following),
+          1,
+        ),
+        this.userRepository.updateFollowingCount(
+          new Types.ObjectId(followRequest.follower),
+          1,
+        ),
+      ]);
+
+      return followRequest;
+    }
+
+    if (respondFollow.action === "reject") {
+      await followRequest.deleteOne();
+      return { success: true };
+    }
+  };
   unfollow = async (unfollowDto: UnFollowDto) => {
     const { follower, following } = unfollowDto;
 
@@ -102,27 +135,7 @@ export class FollowService {
     const requests = await this.followRepository.getPendingRequests(userId);
     return requests;
   };
-  respondToRequest = async (respondFollow: RespondFollow) => {
-    const followRequest = await this.followRepository.getOne({
-      follower: respondFollow.follower,
-      following: respondFollow.following,
-      status: FollowStatus.PENDING,
-    });
 
-    if (!followRequest) {
-      throw new Error("Follow request not found or already handled");
-    }
-
-    if (respondFollow.action === "accept") {
-      followRequest.status = FollowStatus.ACCEPTED;
-      await followRequest.save();
-      return followRequest;
-    }
-
-    if (respondFollow.action === "reject") {
-      await followRequest.deleteOne();
-    }
-  };
   getFollowList = async (
     targetUserId: string,
     currentUserId: string,

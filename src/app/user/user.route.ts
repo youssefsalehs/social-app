@@ -2,9 +2,16 @@ import { Router } from "express";
 
 import { guard } from "../../lib/auth/guard";
 import followController from "./controller/follow.controller";
+import userController from "./controller/user.controller";
 
 const userRouter = Router();
 userRouter.get("/pending-requests", guard, followController.getPendingRequests);
+userRouter.put("/update-profile", guard, userController.updateProfile);
+userRouter.patch(
+  "/toggle-visibility",
+  guard,
+  userController.toggleProfileVisibility,
+);
 userRouter
   .route("/:id/follow")
   .post(guard, followController.followUser)
@@ -18,5 +25,5 @@ userRouter.patch(
 userRouter.get("/:id/followers", guard, followController.getFollowers);
 
 userRouter.get("/:id/following", guard, followController.getFollowing);
-
+userRouter.get("/:username", guard, userController.getProfile);
 export { userRouter };

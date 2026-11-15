@@ -10,18 +10,33 @@ export class UserRepository extends AbstractRepository<IUser> {
   async findByEmail(email: string): Promise<UserDocument | null> {
     return User.findOne({ email });
   }
-  async updateFollowersCount(userId: Types.ObjectId, amount: 1 | -1) {
+  async updateFollowersCount(userId: Types.ObjectId, amount: number) {
     return User.updateOne(
       { _id: userId },
       { $inc: { followersCount: amount } },
     );
   }
 
-  async updateFollowingCount(userId: Types.ObjectId, amount: 1 | -1) {
+  async updateFollowingCount(userId: Types.ObjectId, amount: number) {
     return User.updateOne(
       { _id: userId },
       { $inc: { followingCount: amount } },
     );
+  }
+  bulkIncrementFollowingCount = async (
+    userIds: Types.ObjectId[],
+    amount: number = 1,
+  ) => {
+    return await User.updateMany(
+      { _id: { $in: userIds } },
+      { $inc: { followingCount: amount } },
+    );
+  };
+  async findByUsername(username: string): Promise<UserDocument | null> {
+    return User.findOne({
+      username: username.toLowerCase(),
+      isDeleted: false,
+    }).select("-password -__v");
   }
 }
 

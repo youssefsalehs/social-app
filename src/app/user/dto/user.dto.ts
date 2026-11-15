@@ -1,11 +1,16 @@
-import { z } from "zod";
-export const updateUserDto = z.object({
-  name: z.string().min(2).max(20).trim().optional(),
-  username: z.string().min(3).max(20).trim().optional(),
-  dob: z.coerce.date().optional(),
-  gender: z.enum(["male", "female"]).optional(),
-});
-export const updatePasswordDto = z.object({
-  password: z.string().min(8).max(16).trim(),
-  newPassword: z.string().min(8).max(16).trim(),
-});
+import { IUser } from "../interface/user.interface";
+
+export interface GetProfileDto {
+  username: string;
+  viewerId: string;
+}
+export interface UpdateProfileDto {
+  userId: string;
+  data: Partial<IUser>;
+}
+export interface ToggleVisibilityDto {
+  userId: string;
+  data?: {
+    isPrivate?: boolean;
+  };
+}

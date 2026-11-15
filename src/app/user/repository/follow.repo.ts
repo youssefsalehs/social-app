@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { AbstractRepository } from "../../../lib/db/abstract.repository.js";
 import Follow, { FollowStatus } from "../model/follow.model";
 import { IFollow } from "./../interface/follow.interface";
@@ -20,6 +21,26 @@ export class FollowRepository extends AbstractRepository<IFollow> {
       .populate(populateField, "username name profilePicture")
       .sort({ createdAt: -1 })
       .lean();
+  };
+  acceptAllPendingRequests = async (
+    followingId: string,
+  ): Promise<Types.ObjectId[]> => {
+    const filter = {
+      following: new Types.ObjectId(followingId),
+      status: FollowStatus.PENDING,
+    };
+
+    const pendingRequests = await Follow.find(filter).select("follower");
+
+    if (pendingRequests.length === 0) {
+      return [];
+    }
+
+    const followerIds = pendingRequests.map((req) => req.follower);
+
+    await Follow.updateMany(filter, { status: FollowStatus.ACCEPTED });
+
+    return followerIds;
   };
 }
 

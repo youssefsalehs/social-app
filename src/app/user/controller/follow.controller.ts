@@ -12,7 +12,9 @@ export class FollowController {
       return res.status(200).json({
         success: true,
         message:
-          status === FollowStatus.PENDING ? "Follow request sent" : "Followed",
+          status === FollowStatus.PENDING
+            ? "Follow request sent"
+            : "Followed successfully",
       });
     } catch (err) {
       return next(err);
@@ -25,7 +27,9 @@ export class FollowController {
         follower: req?.user?.id,
         following: req?.params?.id as string,
       });
-      return res.status(200).json({ message: "Unfollowed", success: true });
+      return res
+        .status(200)
+        .json({ message: "Unfollowed successfully", success: true });
     } catch (err) {
       return next(err);
     }

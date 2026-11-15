@@ -57,11 +57,11 @@ export class AuthService {
     newUser.password = "";
     const htmlContent = getOtpEmailTemplate(code, "register");
 
-    await this.mailProvider.send(
-      newUser.email,
-      "Verify Your Email - NGL",
-      htmlContent,
-    );
+    // await this.mailProvider.send(
+    //   newUser.email,
+    //   "Verify Your Email - NGL",
+    //   htmlContent,
+    // );
     return newUser;
   };
 
@@ -179,7 +179,7 @@ export class AuthService {
     if (!cachedCode) {
       throw authErrors.otpExpired;
     }
-    if (verifyLoginDto.code != cachedCode) {
+    if (+verifyLoginDto.code != +cachedCode) {
       throw authErrors.wrongOtp;
     }
     if (user.isDeleted) {
@@ -322,6 +322,7 @@ export class AuthService {
     );
   };
   verifyEnable2StepVerification = async (verify2faDto: Verify2faDto) => {
+    console.log("here");
     const user = await this.userRepository.findByEmail(verify2faDto.email);
     if (!user) {
       throw authErrors.wrongOtp;
