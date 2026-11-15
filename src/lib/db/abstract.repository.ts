@@ -23,6 +23,6 @@ export abstract class AbstractRepository<T> {
     return this.model.deleteOne(filter);
   }
   async getOne(filter: QueryFilter<T>): Promise<HydratedDocument<T> | null> {
-    return this.model.findById(filter);
+    return this.model.findOne(filter);
   }
 }

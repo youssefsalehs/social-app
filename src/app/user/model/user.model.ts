@@ -9,6 +9,7 @@ const schema = new Schema<IUser>(
       required: true,
       unique: true,
       trim: true,
+      lowercase: true,
       minlength: 3,
       maxlength: 20,
     },
@@ -41,6 +42,10 @@ const schema = new Schema<IUser>(
     twoStepVerification: { type: Boolean, default: false },
     coverPicture: String,
     phoneNumber: String,
+    bio: { type: String, trim: true, maxlength: 160, default: "" },
+    isPrivate: { type: Boolean, default: false },
+    followersCount: { type: Number, default: 0, min: 0 },
+    followingCount: { type: Number, default: 0, min: 0 },
   },
   {
     timestamps: true,

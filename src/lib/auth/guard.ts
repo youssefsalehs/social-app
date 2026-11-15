@@ -17,6 +17,7 @@ export const guard = async (
 ) => {
   try {
     const token = req.cookies.access_token;
+
     if (!token) {
       return next(new AppError("Authentication token missing.", 401));
     }
@@ -27,6 +28,7 @@ export const guard = async (
       return next(userErrors.userNotFound);
     }
     req.user = decoded;
+
     next();
   } catch (error) {
     return next(new AppError("Invalid or expired token.", 401));

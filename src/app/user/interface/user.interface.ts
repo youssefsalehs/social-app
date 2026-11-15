@@ -13,4 +13,8 @@ export interface IUser {
   twoStepVerification: boolean;
   coverPicture?: string;
   phoneNumber?: string;
+  bio: string;
+  isPrivate: boolean;
+  followersCount: number;
+  followingCount: number;
 }
