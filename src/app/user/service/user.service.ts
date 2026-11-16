@@ -164,5 +164,27 @@ export class UserService {
     );
     this.userRepository.update({ _id: userId }, { coverPicture: key });
   };
+  deleteProfilePicture = async (userId: string) => {
+    const user = await this.userRepository.getOne({ _id: userId });
+    if (!user?.profilePicture || user.profilePicture === "") {
+      throw new AppError("no profile picture found to delete", 404);
+    }
+    await this.cloudProvider.deleteFile(user?.profilePicture as string);
+    await this.userRepository.update(
+      { _id: userId },
+      { $unset: { profilePicture: "" } },
+    );
+  };
+  deleteCoverPicture = async (userId: string) => {
+    const user = await this.userRepository.getOne({ _id: userId });
+    if (!user?.coverPicture || user.coverPicture === "") {
+      throw new AppError("no cover picture found to delete", 404);
+    }
+    await this.cloudProvider.deleteFile(user?.coverPicture as string);
+    await this.userRepository.update(
+      { _id: userId },
+      { $unset: { coverPicture: "" } },
+    );
+  };
 }
 export default new UserService();

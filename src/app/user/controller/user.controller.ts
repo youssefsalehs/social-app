@@ -80,5 +80,29 @@ export class UserController {
       return next(error);
     }
   };
+  deleteProfilePicture = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      await this.userService.deleteProfilePicture(req?.user?.id);
+      return res.status(204).send();
+    } catch (error) {
+      return next(error);
+    }
+  };
+  deleteCoverPicture = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      await this.userService.deleteCoverPicture(req?.user?.id);
+      return res.status(204).send();
+    } catch (error) {
+      return next(error);
+    }
+  };
 }
 export default new UserController();

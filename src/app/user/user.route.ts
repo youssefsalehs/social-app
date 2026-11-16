@@ -13,12 +13,19 @@ userRouter.post(
   multerUploadSingle("pp"),
   userController.uploadProfilePicture,
 );
+userRouter.delete(
+  "/profile-picture",
+  guard,
+
+  userController.deleteProfilePicture,
+);
 userRouter.post(
   "/upload-cover-picture",
   guard,
   multerUploadSingle("cp"),
   userController.uploadCoverPicture,
 );
+userRouter.delete("/cover-picture", guard, userController.deleteCoverPicture);
 userRouter.patch(
   "/toggle-visibility",
   guard,
