@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import userService, { UserService } from "../service/user.service";
+import { success } from "zod";
 
 export class UserController {
   private userService: UserService = userService;
@@ -41,6 +42,42 @@ export class UserController {
       });
     } catch (error) {
       next(error);
+    }
+  };
+  uploadProfilePicture = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      await this.userService.uploadProfilePicture(
+        req.file as Express.Multer.File,
+        req?.user?.id,
+      );
+      return res.status(201).json({
+        success: true,
+        message: "uploaded profile picture",
+      });
+    } catch (error) {
+      return next(error);
+    }
+  };
+  uploadCoverPicture = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      await this.userService.uploadCoverPicture(
+        req.file as Express.Multer.File,
+        req?.user?.id,
+      );
+      return res.status(201).json({
+        success: true,
+        message: "uploaded cover picture",
+      });
+    } catch (error) {
+      return next(error);
     }
   };
 }

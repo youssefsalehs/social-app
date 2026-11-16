@@ -271,14 +271,14 @@ export class AuthService {
     }
 
     const payload = verifyRefreshToken(token);
-    const user = await this.userRepository.getOne({ _id: payload._id });
+
+    const user = await this.userRepository.getOne({ _id: payload.id });
     if (!user || !user.isVerified) {
       throw userErrors.userNotFound;
     }
 
-    const storedToken = await cacheProvider.get(
-      `refreshToken:${payload?._id.toString()}`,
-    );
+    const storedToken = await cacheProvider.get(`refreshToken:${payload.id}`);
+
     if (!storedToken) {
       throw authErrors.refreshExpired;
     }

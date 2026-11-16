@@ -4,9 +4,12 @@ import { GetProfileDto, UpdateProfileDto } from "../dto/user.dto";
 import * as userErrors from "../errors";
 import followRepository, { FollowRepository } from "../repository/follow.repo";
 import userRepository, { UserRepository } from "./../repository/user.repo";
+import { ICloudProvider } from "../../../pkg/cloud/cloud.interface";
+import { s3CloudProvider } from "../../../lib/cloud/init";
 export class UserService {
   private userRepository: UserRepository = userRepository;
   private followRepository: FollowRepository = followRepository;
+  private readonly cloudProvider: ICloudProvider = s3CloudProvider;
   getProfileByUsername = async (getProfileDto: GetProfileDto) => {
     const { username, viewerId } = getProfileDto;
     const targetUser = await this.userRepository.findByUsername(username);
@@ -145,6 +148,21 @@ export class UserService {
     }
 
     return newIsPrivate;
+  };
+
+  uploadProfilePicture = async (file: Express.Multer.File, userId: string) => {
+    const key = await this.cloudProvider.uploadFile(
+      file,
+      `users/${userId}/profile-pictures`,
+    );
+    this.userRepository.update({ _id: userId }, { profilePicture: key });
+  };
+  uploadCoverPicture = async (file: Express.Multer.File, userId: string) => {
+    const key = await this.cloudProvider.uploadFile(
+      file,
+      `users/${userId}/cover-pictures`,
+    );
+    this.userRepository.update({ _id: userId }, { coverPicture: key });
   };
 }
 export default new UserService();
