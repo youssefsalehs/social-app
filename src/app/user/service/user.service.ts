@@ -1,14 +1,9 @@
-import userRepository, { UserRepository } from "./../repository/user.repo";
-import * as userErrors from "../errors";
-import followRepository, { FollowRepository } from "../repository/follow.repo";
-import {
-  GetProfileDto,
-  ToggleVisibilityDto,
-  UpdateProfileDto,
-} from "../dto/user.dto";
 import { Types } from "mongoose";
 import { AppError } from "../../../pkg/error/error";
-import { IUser } from "../interface/user.interface";
+import { GetProfileDto, UpdateProfileDto } from "../dto/user.dto";
+import * as userErrors from "../errors";
+import followRepository, { FollowRepository } from "../repository/follow.repo";
+import userRepository, { UserRepository } from "./../repository/user.repo";
 export class UserService {
   private userRepository: UserRepository = userRepository;
   private followRepository: FollowRepository = followRepository;

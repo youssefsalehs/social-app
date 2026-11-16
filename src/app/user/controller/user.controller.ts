@@ -25,14 +25,6 @@ export class UserController {
       next(error);
     }
   };
-  //   getSuggestions = async (req: Request, res: Response, next: NextFunction) => {
-  //     try {
-  //       const users = await this.userService.getSuggestions(req.user!.id);
-  //       res.status(200).json({ data: users });
-  //     } catch (error) {
-  //       next(error);
-  //     }
-  //   };
 
   toggleProfileVisibility = async (
     req: Request,
@@ -43,12 +35,10 @@ export class UserController {
       const isPrivate = await this.userService.toggleProfileVisibility(
         req?.user?.id,
       );
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: `profile is ${isPrivate ? "private" : "public"} now`,
-        });
+      res.status(200).json({
+        success: true,
+        message: `profile is ${isPrivate ? "private" : "public"} now`,
+      });
     } catch (error) {
       next(error);
     }
