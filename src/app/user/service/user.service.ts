@@ -1,15 +1,22 @@
 import { Types } from "mongoose";
+import { inject, injectable } from "tsyringe";
+import { TOKENS } from "../../../lib/di/tokens";
+import { ICloudProvider } from "../../../pkg/cloud/cloud.interface";
 import { AppError } from "../../../pkg/error/error";
 import { GetProfileDto, UpdateProfileDto } from "../dto/user.dto";
 import * as userErrors from "../errors";
 import followRepository, { FollowRepository } from "../repository/follow.repo";
-import userRepository, { UserRepository } from "./../repository/user.repo";
-import { ICloudProvider } from "../../../pkg/cloud/cloud.interface";
-import { s3CloudProvider } from "../../../lib/cloud/init";
+import { UserRepository } from "./../repository/user.repo";
+@injectable()
 export class UserService {
-  private userRepository: UserRepository = userRepository;
+  constructor(
+    @inject(TOKENS.UserRepository)
+    private readonly userRepository: UserRepository,
+    @inject(TOKENS.S3CloudProvider)
+    private readonly cloudProvider: ICloudProvider,
+  ) {}
   private followRepository: FollowRepository = followRepository;
-  private readonly cloudProvider: ICloudProvider = s3CloudProvider;
+
   getProfileByUsername = async (getProfileDto: GetProfileDto) => {
     const { username, viewerId } = getProfileDto;
     const targetUser = await this.userRepository.findByUsername(username);
@@ -187,4 +194,3 @@ export class UserService {
     );
   };
 }
-export default new UserService();

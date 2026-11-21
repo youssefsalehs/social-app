@@ -1,9 +1,11 @@
 import { Router } from "express";
 import { guard } from "../../lib/auth/guard";
 import followController from "./controller/follow.controller";
-import userController from "./controller/user.controller";
+import container from "../../lib/di/container";
 import { multerUploadSingle } from "../../lib/media/multer";
-
+import { TOKENS } from "../../lib/di/tokens";
+import { UserController } from "./controller/user.controller";
+const userController = container.resolve<UserController>(TOKENS.UserController);
 const userRouter = Router();
 userRouter.get("/pending-requests", guard, followController.getPendingRequests);
 userRouter.put("/update-profile", guard, userController.updateProfile);

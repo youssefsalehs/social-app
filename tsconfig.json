@@ -6,7 +6,9 @@
     "target": "esnext",
     "strict": true,
     "skipLibCheck": true,
-    "types": ["multer"]
+    "types": ["multer"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
   "include": ["src"]
 }

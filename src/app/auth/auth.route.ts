@@ -1,6 +1,10 @@
 import { Router } from "express";
-import authController from "./controller/auth.controller";
-("./controller/auth.controller.js");
+// import authController from "./controller/auth.controller";
+// ("./controller/auth.controller.js");
+import container from "../../lib/di/container";
+import { TOKENS } from "../../lib/di/tokens";
+import { AuthController } from "./controller/auth.controller";
+const authController = container.resolve<AuthController>(TOKENS.AuthController);
 const authRouter = Router();
 
 authRouter.post("/register", authController.register);

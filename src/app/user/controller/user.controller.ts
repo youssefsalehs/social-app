@@ -1,9 +1,13 @@
 import { NextFunction, Request, Response } from "express";
-import userService, { UserService } from "../service/user.service";
-import { success } from "zod";
+import { inject, injectable } from "tsyringe";
+import { TOKENS } from "../../../lib/di/tokens";
+import { UserService } from "../service/user.service";
 
+@injectable()
 export class UserController {
-  private userService: UserService = userService;
+  constructor(
+    @inject(TOKENS.UserService) private readonly userService: UserService,
+  ) {}
   getProfile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const profile = await this.userService.getProfileByUsername({
@@ -105,4 +109,3 @@ export class UserController {
     }
   };
 }
-export default new UserController();

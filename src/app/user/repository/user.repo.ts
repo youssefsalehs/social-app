@@ -2,7 +2,9 @@ import { Types } from "mongoose";
 import { AbstractRepository } from "../../../lib/db/abstract.repository.js";
 import { IUser } from "../interface/user.interface.js";
 import User, { type UserDocument } from "../model/user.model";
+import { injectable } from "tsyringe";
 
+@injectable()
 export class UserRepository extends AbstractRepository<IUser> {
   constructor() {
     super(User);

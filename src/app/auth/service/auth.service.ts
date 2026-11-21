@@ -1,15 +1,14 @@
+import { inject, injectable } from "tsyringe";
 import { cacheProvider } from "../../../lib/cache/init";
-import { generateOtp } from "../../../lib/utils/generateOtp";
-import { toSeconds } from "../../../pkg/utils/time";
-import userRepository, {
-  UserRepository,
-} from "../../user/repository/user.repo";
-
+import { TOKENS } from "../../../lib/di/tokens";
 import { getOtpEmailTemplate } from "../../../lib/email/emailTemplates";
-
-import { nodemailerProvider } from "../../../lib/email/init";
+import { generateOtp } from "../../../lib/utils/generateOtp";
+import { verifyGoogleToken } from "../../../lib/utils/google-auth";
 import { MailProvider } from "../../../pkg/email/mail.interface";
+import { AppError } from "../../../pkg/error/error";
+import { toSeconds } from "../../../pkg/utils/time";
 import * as userErrors from "../../user/errors";
+import { UserRepository } from "../../user/repository/user.repo";
 import {
   Enable2faDto,
   LoginDto,
@@ -20,22 +19,23 @@ import {
   VerifyAccountDto,
   VerifyLoginDto,
 } from "../dto";
+import { Provider } from "../enum/enum";
 import * as authErrors from "../errors";
 import { hashPassword, matchPassword } from "../utils/hash";
 import { generateAccessToken, generateRefreshToken } from "../utils/token";
-import { verifyGoogleToken } from "../../../lib/utils/google-auth";
-import { AppError } from "../../../pkg/error/error";
-import { Provider } from "../enum/enum";
 import verifyRefreshToken from "../utils/verifyRefreshToken";
+@injectable()
 export class AuthService {
   private readonly enable2FAKey: string = `enable2FactorAuth`;
   private readonly login2FAKey: string = `loginCode`;
   private readonly sendOtpKey: string = "otp";
-  private userRepository: UserRepository = userRepository;
-  private mailProvider: MailProvider;
-  constructor() {
-    this.mailProvider = nodemailerProvider;
-  }
+
+  constructor(
+    @inject(TOKENS.UserRepository)
+    private readonly userRepository: UserRepository,
+    @inject(TOKENS.NodemailerProvider)
+    private readonly mailProvider: MailProvider,
+  ) {}
 
   register = async (registerDto: RegisterDto) => {
     const user = await this.userRepository.findByEmail(registerDto.email);
@@ -57,11 +57,11 @@ export class AuthService {
     newUser.password = "";
     const htmlContent = getOtpEmailTemplate(code, "register");
 
-    // await this.mailProvider.send(
-    //   newUser.email,
-    //   "Verify Your Email - NGL",
-    //   htmlContent,
-    // );
+    await this.mailProvider.send(
+      newUser.email,
+      "Verify Your Email - NGL",
+      htmlContent,
+    );
     return newUser;
   };
 
@@ -345,4 +345,3 @@ export class AuthService {
     await cacheProvider.del(`${this.enable2FAKey}:${verify2faDto.email}`);
   };
 }
-export default new AuthService();
