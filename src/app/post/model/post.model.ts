@@ -9,6 +9,7 @@ const schema = new Schema<IPost>(
     reactionsCount: { type: Number, default: 0 },
     allowsComments: { type: Boolean, default: true },
     isDeleted: { type: Boolean, default: false },
+    media: { type: [String], default: [] },
   },
   {
     timestamps: true,

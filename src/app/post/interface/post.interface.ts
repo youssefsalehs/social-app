@@ -7,4 +7,5 @@ export interface IPost {
   reactionsCount: number;
   allowsComments: boolean;
   isDeleted: boolean;
+  media?: string[];
 }
