@@ -9,7 +9,7 @@
     "start": "node dist/server.js"
   },
   "keywords": [],
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1170.0",
     "bcrypt": "^6.0.0",
