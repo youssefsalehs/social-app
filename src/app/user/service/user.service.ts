@@ -115,27 +115,8 @@ export class UserService {
       }
     }
 
-    const canViewPrivateInfo = isOwnProfile || followStatus === 1;
-
     return {
-      id: targetUser._id,
-      username: targetUser.username,
-      email: isOwnProfile ? targetUser.email : undefined,
-      profilePicture: targetUser.profilePicture,
-      coverPicture: targetUser.coverPicture,
-      bio: targetUser.bio,
-      dob:
-        canViewPrivateInfo || !targetUser.isPrivate
-          ? targetUser.dob
-          : undefined,
-      gender: targetUser.gender,
-      phoneNumber:
-        canViewPrivateInfo || !targetUser.isPrivate
-          ? targetUser.phoneNumber
-          : undefined,
-      isPrivate: targetUser.isPrivate,
-      followersCount: targetUser.followersCount,
-      followingCount: targetUser.followingCount,
+      ...targetUser,
       viewerContext: {
         isOwnProfile,
         followStatus,

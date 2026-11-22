@@ -56,7 +56,11 @@ export class UserRepository extends AbstractRepository<IUser> {
       ]));
     filter.isDeleted = false;
     const [data, total] = await Promise.all([
-      User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      User.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select("-password -__v"),
       User.countDocuments(filter),
     ]);
 
@@ -68,7 +72,11 @@ export class UserRepository extends AbstractRepository<IUser> {
     { skip, limit }: { skip: number; limit: number },
   ): Promise<[HydratedDocument<IUser>[], number]> {
     const [data, total] = await Promise.all([
-      User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      User.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select("-password -__v"),
       User.countDocuments(filter),
     ]);
     return [data, total];
