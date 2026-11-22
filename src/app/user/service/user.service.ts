@@ -1,19 +1,21 @@
-import { Types } from "mongoose";
+import { QueryFilter, Types } from "mongoose";
 import { inject, injectable } from "tsyringe";
 import { TOKENS } from "../../../lib/di/tokens";
+import { ICacheProvider } from "../../../pkg/cache/cache.interface";
 import { ICloudProvider } from "../../../pkg/cloud/cloud.interface";
 import { AppError } from "../../../pkg/error/error";
-import {
-  GetProfileDto,
-  GetProfilesDto,
-  UpdateProfileDto,
-} from "../dto/user.dto";
-import * as userErrors from "../errors";
 import followRepository, {
   FollowRepository,
 } from "../../follow/repository/follow.repo";
+import {
+  GetProfileDto,
+  GetProfilesDto,
+  GetSuggestionsDto,
+  UpdateProfileDto,
+} from "../dto/user.dto";
+import * as userErrors from "../errors";
+import { IUser } from "../interface/user.interface";
 import { UserRepository } from "./../repository/user.repo";
-import { ICacheProvider } from "../../../pkg/cache/cache.interface";
 @injectable()
 export class UserService {
   constructor(
@@ -34,14 +36,28 @@ export class UserService {
     user.password = undefined;
     return user;
   };
-  getProfiles = async (filters: GetProfilesDto) => {
+  private getFollowedIds = async (viewerId: string): Promise<Set<string>> => {
+    const records = await this.followRepository.getFollowingIds(
+      new Types.ObjectId(viewerId),
+    );
+    const followedIds = new Set<string>();
+    records.forEach((id) => followedIds.add(id.toString()));
+    return followedIds;
+  };
+
+  getProfiles = async (filters: GetProfilesDto, viewerId: string) => {
     const p = Math.max(1, Number(filters.page) || 1);
     const l = Math.min(100, Math.max(1, Number(filters.limit) || 10));
     const skip = (p - 1) * l;
-    const [data, total] = await this.userRepository.getProfiles(filters.q, {
-      skip,
-      limit: l,
-    });
+    const [data, total] = await this.userRepository.getProfiles(
+      viewerId,
+      filters.q,
+      {
+        skip,
+        limit: l,
+      },
+    );
+
     const metaData = {
       total,
       page: p,
@@ -49,6 +65,32 @@ export class UserService {
       totalPages: Math.ceil(total / l),
     };
     return { profiles: data, metaData };
+  };
+
+  getSuggestions = async (viewerId: string, dto: GetSuggestionsDto) => {
+    const p = Math.max(1, Number(dto.page) || 1);
+    const l = Math.min(100, Math.max(1, Number(dto.limit) || 10));
+    const skip = (p - 1) * l;
+
+    const followedIds = await this.getFollowedIds(viewerId);
+
+    const filter: QueryFilter<IUser> = {
+      _id: { $ne: new Types.ObjectId(viewerId), $nin: [...followedIds] },
+      isDeleted: false,
+    };
+    const [data, total] = await this.userRepository.getUsers(filter, {
+      skip,
+      limit: l,
+    });
+    return {
+      profiles: data,
+      metaData: {
+        total,
+        page: p,
+        limit: l,
+        totalPages: Math.ceil(total / l),
+      },
+    };
   };
 
   getProfileByUsername = async (getProfileDto: GetProfileDto) => {

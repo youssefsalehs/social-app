@@ -1,4 +1,4 @@
-import { GetProfilesDto } from "./../dto/user.dto";
+import { GetProfilesDto, GetSuggestionsDto } from "./../dto/user.dto";
 import { NextFunction, Request, Response } from "express";
 import { inject, injectable } from "tsyringe";
 import { TOKENS } from "../../../lib/di/tokens";
@@ -38,12 +38,25 @@ export class UserController {
       const filters = req.query;
       const { profiles, metaData } = await this.userService.getProfiles(
         filters as unknown as GetProfilesDto,
+        req.user?.id,
       );
       return res.status(200).json({
         success: true,
         data: profiles,
         metaData,
       });
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  getSuggestions = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { profiles, metaData } = await this.userService.getSuggestions(
+        req.user!.id,
+        req.query as unknown as GetSuggestionsDto,
+      );
+      return res.status(200).json({ success: true, data: profiles, metaData });
     } catch (error) {
       return next(error);
     }

@@ -106,7 +106,10 @@ export class AuthService {
       throw userErrors.userNotVerified;
     }
 
-    const isMatch = await matchPassword(loginDto.password, user.password);
+    const isMatch = await matchPassword(
+      loginDto.password,
+      user?.password as string,
+    );
 
     if (!isMatch) {
       throw authErrors.passwordNotMatch;

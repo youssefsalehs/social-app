@@ -42,21 +42,35 @@ export class UserRepository extends AbstractRepository<IUser> {
     }).select("-password -__v");
   }
   async getProfiles(
+    viewerId: string,
     q: string = "",
     { skip, limit }: { skip: number; limit: number },
   ): Promise<[HydratedDocument<IUser>[], number]> {
     const filter: QueryFilter<IUser> = {};
-    filter.$or = [
-      { bio: { $regex: q, $options: "i" } },
-      { username: { $regex: q, $options: "i" } },
-      { email: { $regex: q, $options: "i" } },
-    ];
+
+    ((filter._id = { $ne: viewerId }),
+      (filter.$or = [
+        { bio: { $regex: q, $options: "i" } },
+        { username: { $regex: q, $options: "i" } },
+        { email: { $regex: q, $options: "i" } },
+      ]));
     filter.isDeleted = false;
     const [data, total] = await Promise.all([
       User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
       User.countDocuments(filter),
     ]);
 
+    return [data, total];
+  }
+
+  async getUsers(
+    filter: QueryFilter<IUser>,
+    { skip, limit }: { skip: number; limit: number },
+  ): Promise<[HydratedDocument<IUser>[], number]> {
+    const [data, total] = await Promise.all([
+      User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      User.countDocuments(filter),
+    ]);
     return [data, total];
   }
 }

@@ -29,6 +29,7 @@ userRouter.patch(
   userController.toggleProfileVisibility,
 );
 userRouter.delete("/deactivate", guard, userController.deactivate);
+userRouter.get("/suggestions", guard, userController.getSuggestions);
 userRouter.get("/:username", guard, userController.getProfile);
 
 export { userRouter };

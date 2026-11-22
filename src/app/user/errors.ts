@@ -6,3 +6,4 @@ export const userAlreadyVerified = new AppError("user already verified", 400);
 export const userNotVerified = new AppError("user isn't verified", 403);
 export const userNotAuthorized = new AppError("user not authorized", 403);
 export const userCreationFailed = new AppError("Failed to create user", 500);
+export const invalidSuggestionType = new AppError("invalid suggestion type", 400);

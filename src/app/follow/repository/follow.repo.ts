@@ -42,6 +42,28 @@ export class FollowRepository extends AbstractRepository<IFollow> {
 
     return followerIds;
   };
+
+  getFollowingIds = async (
+    followerId: Types.ObjectId,
+  ): Promise<Types.ObjectId[]> => {
+    const records = await Follow.find(
+      { follower: followerId, status: FollowStatus.ACCEPTED },
+    )
+      .select("following")
+      .lean();
+    return records.map((record) => record.following as Types.ObjectId);
+  };
+
+  getFollowerIds = async (
+    followingId: Types.ObjectId,
+  ): Promise<Types.ObjectId[]> => {
+    const records = await Follow.find(
+      { following: followingId, status: FollowStatus.ACCEPTED },
+    )
+      .select("follower")
+      .lean();
+    return records.map((record) => record.follower as Types.ObjectId);
+  };
 }
 
 export default new FollowRepository();

@@ -16,7 +16,13 @@ export interface ToggleVisibilityDto {
 }
 
 export interface GetProfilesDto {
-  q: string;
-  limit: number;
-  page: number;
+  q?: string;
+  limit?: number;
+  page?: number;
+  viewerId?: string;
+}
+
+export interface GetSuggestionsDto {
+  limit?: number;
+  page?: number;
 }
