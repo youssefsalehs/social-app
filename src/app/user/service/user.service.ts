@@ -4,9 +4,7 @@ import { TOKENS } from "../../../lib/di/tokens";
 import { ICacheProvider } from "../../../pkg/cache/cache.interface";
 import { ICloudProvider } from "../../../pkg/cloud/cloud.interface";
 import { AppError } from "../../../pkg/error/error";
-import followRepository, {
-  FollowRepository,
-} from "../../follow/repository/follow.repo";
+import { FollowRepository } from "../../follow/repository/follow.repo";
 import {
   GetProfileDto,
   GetProfilesDto,

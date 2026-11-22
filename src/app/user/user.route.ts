@@ -1,9 +1,8 @@
 import { Router } from "express";
 import { guard } from "../../lib/auth/guard";
-import followController from "../follow/controller/follow.controller";
 import container from "../../lib/di/container";
-import { multerUploadSingle } from "../../lib/media/multer";
 import { TOKENS } from "../../lib/di/tokens";
+import { multerUploadSingle } from "../../lib/media/multer";
 import { UserController } from "./controller/user.controller";
 const userController = container.resolve<UserController>(TOKENS.UserController);
 const userRouter = Router();
