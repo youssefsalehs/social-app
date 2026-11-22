@@ -1,16 +1,20 @@
 import { Types } from "mongoose";
-import { FollowStatus } from "../model/follow.model";
-import * as userErrors from "../../user/errors";
-import { FollowDto, RespondFollow, UnFollowDto } from "../dto/follow.dto";
+import { inject, injectable } from "tsyringe";
+import { TOKENS } from "../../../lib/di/tokens";
 import { AppError } from "../../../pkg/error/error";
-import userRepository, {
-  UserRepository,
-} from "../../user/repository/user.repo";
-import followRepository, { FollowRepository } from "../repository/follow.repo";
-
+import * as userErrors from "../../user/errors";
+import { UserRepository } from "../../user/repository/user.repo";
+import { FollowDto, RespondFollow, UnFollowDto } from "../dto/follow.dto";
+import { FollowStatus } from "../model/follow.model";
+import { FollowRepository } from "../repository/follow.repo";
+@injectable()
 export class FollowService {
-  private userRepository: UserRepository = userRepository;
-  private followRepository: FollowRepository = followRepository;
+  constructor(
+    @inject(TOKENS.UserRepository)
+    private readonly userRepository: UserRepository,
+    @inject(TOKENS.FollowRepository)
+    private readonly followRepository: FollowRepository,
+  ) {}
   follow = async (followDto: FollowDto) => {
     const { follower, following } = followDto;
 
@@ -175,5 +179,3 @@ export class FollowService {
     return records;
   };
 }
-
-export default new FollowService();

@@ -2,7 +2,9 @@ import { Types } from "mongoose";
 import { AbstractRepository } from "../../../lib/db/abstract.repository.js";
 import Follow, { FollowStatus } from "../model/follow.model";
 import { IFollow } from "../interface/follow.interface.js";
+import { injectable } from "tsyringe";
 
+injectable();
 export class FollowRepository extends AbstractRepository<IFollow> {
   constructor() {
     super(Follow);
@@ -46,9 +48,10 @@ export class FollowRepository extends AbstractRepository<IFollow> {
   getFollowingIds = async (
     followerId: Types.ObjectId,
   ): Promise<Types.ObjectId[]> => {
-    const records = await Follow.find(
-      { follower: followerId, status: FollowStatus.ACCEPTED },
-    )
+    const records = await Follow.find({
+      follower: followerId,
+      status: FollowStatus.ACCEPTED,
+    })
       .select("following")
       .lean();
     return records.map((record) => record.following as Types.ObjectId);
@@ -57,13 +60,12 @@ export class FollowRepository extends AbstractRepository<IFollow> {
   getFollowerIds = async (
     followingId: Types.ObjectId,
   ): Promise<Types.ObjectId[]> => {
-    const records = await Follow.find(
-      { following: followingId, status: FollowStatus.ACCEPTED },
-    )
+    const records = await Follow.find({
+      following: followingId,
+      status: FollowStatus.ACCEPTED,
+    })
       .select("follower")
       .lean();
     return records.map((record) => record.follower as Types.ObjectId);
   };
 }
-
-export default new FollowRepository();

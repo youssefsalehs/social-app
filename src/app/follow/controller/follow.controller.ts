@@ -1,8 +1,14 @@
 import { NextFunction, Request, Response } from "express";
 import { FollowStatus } from "../model/follow.model";
-import followService, { FollowService } from "../service/follow.service";
+import { FollowService } from "../service/follow.service";
+import { injectable, inject } from "tsyringe";
+import { TOKENS } from "../../../lib/di/tokens";
+
+@injectable()
 export class FollowController {
-  private followService: FollowService = followService;
+  constructor(
+    @inject(TOKENS.FollowService) private readonly followService: FollowService,
+  ) {}
   followUser = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { status } = await this.followService.follow({
@@ -23,7 +29,7 @@ export class FollowController {
 
   unfollowUser = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await followService.unfollow({
+      await this.followService.unfollow({
         follower: req?.user?.id,
         following: req?.params?.id as string,
       });
@@ -105,4 +111,3 @@ export class FollowController {
     }
   };
 }
-export default new FollowController();
