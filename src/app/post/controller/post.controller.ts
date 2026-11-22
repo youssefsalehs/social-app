@@ -19,7 +19,11 @@ export class PostController {
         req.user!.id,
         files,
       );
-      return res.status(201).json({ success: true, data: post });
+      return res.status(201).json({
+        success: true,
+        message: "post created successfully",
+        data: post,
+      });
     } catch (err) {
       return next(err);
     }
@@ -39,13 +43,37 @@ export class PostController {
       const { posts, metaData } = await this.postService.getPosts(
         req.query as unknown as GetPostsQuery,
       );
-      console.log(req.query);
       return res.status(200).json({ success: true, data: posts, metaData });
     } catch (err) {
       return next(err);
     }
   };
-
+  getMyPosts = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { posts, metaData } = await this.postService.getMyPosts(
+        req?.user?.id as string,
+        req.query as unknown as GetPostsQuery,
+      );
+      return res.status(200).json({ success: true, data: posts, metaData });
+    } catch (err) {
+      return next(err);
+    }
+  };
+  getMyHiddenPosts = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const { posts, metaData } = await this.postService.getMyHiddenPosts(
+        req?.user?.id as string,
+        req.query as unknown as GetPostsQuery,
+      );
+      return res.status(200).json({ success: true, data: posts, metaData });
+    } catch (err) {
+      return next(err);
+    }
+  };
   updatePost = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const post = await this.postService.updatePost(
@@ -53,7 +81,11 @@ export class PostController {
         req.user!.id,
         req.body as UpdatePostDto,
       );
-      return res.status(200).json({ success: true, data: post });
+      return res.status(200).json({
+        success: true,
+        message: "post updated successfully",
+        data: post,
+      });
     } catch (err) {
       return next(err);
     }

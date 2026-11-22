@@ -1,8 +1,9 @@
-import { Types } from "mongoose";
+import { QueryFilter, Types } from "mongoose";
 import { AbstractRepository } from "../../../lib/db/abstract.repository.js";
 import { IUser } from "../interface/user.interface.js";
 import User, { type UserDocument } from "../model/user.model";
 import { injectable } from "tsyringe";
+import { HydratedDocument } from "mongoose";
 
 @injectable()
 export class UserRepository extends AbstractRepository<IUser> {
@@ -39,6 +40,24 @@ export class UserRepository extends AbstractRepository<IUser> {
       username: username.toLowerCase(),
       isDeleted: false,
     }).select("-password -__v");
+  }
+  async getProfiles(
+    q: string = "",
+    { skip, limit }: { skip: number; limit: number },
+  ): Promise<[HydratedDocument<IUser>[], number]> {
+    const filter: QueryFilter<IUser> = {};
+    filter.$or = [
+      { bio: { $regex: q, $options: "i" } },
+      { username: { $regex: q, $options: "i" } },
+      { email: { $regex: q, $options: "i" } },
+    ];
+    filter.isDeleted = false;
+    const [data, total] = await Promise.all([
+      User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      User.countDocuments(filter),
+    ]);
+
+    return [data, total];
   }
 }
 

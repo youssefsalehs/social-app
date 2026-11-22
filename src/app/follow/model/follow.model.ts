@@ -1,5 +1,5 @@
 import { model, Schema, Types } from "mongoose";
-import { IFollow } from "../interface/follow.interface";
+import { IFollow } from "../../follow/interface/follow.interface";
 
 export enum FollowStatus {
   PENDING = 0,

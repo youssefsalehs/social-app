@@ -71,7 +71,50 @@ export class PostService {
     };
     return { posts, metaData };
   };
-
+  getMyPosts = async (
+    userId: string,
+    { page = "1", limit = "20" }: GetPostsQuery,
+  ) => {
+    const p = Math.max(1, Number(page) || 1);
+    const l = Math.min(100, Math.max(1, Number(limit) || 20));
+    const skip = (p - 1) * l;
+    const [posts, total] = await this.postRepository.getPosts(
+      {
+        userId,
+        isDeleted: false,
+      },
+      { skip, limit: l },
+    );
+    const metaData = {
+      total,
+      page: p,
+      limit: l,
+      totalPages: Math.ceil(total / l),
+    };
+    return { posts, metaData };
+  };
+  getMyHiddenPosts = async (
+    userId: string,
+    { page = "1", limit = "20" }: GetPostsQuery,
+  ) => {
+    const p = Math.max(1, Number(page) || 1);
+    const l = Math.min(100, Math.max(1, Number(limit) || 20));
+    const skip = (p - 1) * l;
+    const [posts, total] = await this.postRepository.getPosts(
+      {
+        userId,
+        isDeleted: true,
+      },
+      { skip, limit: l },
+    );
+    const metaData = {
+      total,
+      page: p,
+      limit: l,
+      totalPages: Math.ceil(total / l),
+    };
+    return { posts, metaData };
+  };
   updatePost = async (postId: string, userId: string, dto: UpdatePostDto) => {
     const post = await this.postRepository.getOne({
       _id: new Types.ObjectId(postId),

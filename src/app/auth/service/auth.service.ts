@@ -1,9 +1,9 @@
 import { inject, injectable } from "tsyringe";
-import { cacheProvider } from "../../../lib/cache/init";
 import { TOKENS } from "../../../lib/di/tokens";
 import { getOtpEmailTemplate } from "../../../lib/email/emailTemplates";
 import { generateOtp } from "../../../lib/utils/generateOtp";
 import { verifyGoogleToken } from "../../../lib/utils/google-auth";
+import { ICacheProvider } from "../../../pkg/cache/cache.interface";
 import { MailProvider } from "../../../pkg/email/mail.interface";
 import { AppError } from "../../../pkg/error/error";
 import { toSeconds } from "../../../pkg/utils/time";
@@ -35,6 +35,8 @@ export class AuthService {
     private readonly userRepository: UserRepository,
     @inject(TOKENS.NodemailerProvider)
     private readonly mailProvider: MailProvider,
+    @inject(TOKENS.CacheProvider)
+    private readonly cacheProvider: ICacheProvider,
   ) {}
 
   register = async (registerDto: RegisterDto) => {
@@ -49,7 +51,7 @@ export class AuthService {
     }
     const code = generateOtp();
 
-    await cacheProvider.set(
+    await this.cacheProvider.set(
       `${this.sendOtpKey}:${newUser?._id.toString()}`,
       code,
       toSeconds(15, "minutes"),
@@ -59,7 +61,7 @@ export class AuthService {
 
     await this.mailProvider.send(
       newUser.email,
-      "Verify Your Email - NGL",
+      "Verify Your Email - Glimpse",
       htmlContent,
     );
     return newUser;
@@ -74,7 +76,7 @@ export class AuthService {
       throw userErrors.userAlreadyVerified;
     }
 
-    const otp = await cacheProvider.get(
+    const otp = await this.cacheProvider.get(
       `${this.sendOtpKey}:${user._id.toString()}`,
     );
     if (!otp) {
@@ -90,7 +92,7 @@ export class AuthService {
         isVerified: true,
       },
     );
-    await cacheProvider.del(`${this.sendOtpKey}:${user._id.toString()}`);
+    await this.cacheProvider.del(`${this.sendOtpKey}:${user._id.toString()}`);
 
     return updatedUser;
   };
@@ -112,7 +114,7 @@ export class AuthService {
     user.password = "";
     if (user.twoStepVerification) {
       const code = generateOtp();
-      await cacheProvider.set(
+      await this.cacheProvider.set(
         `${this.login2FAKey}:${loginDto.email}`,
         code,
         toSeconds(3, "minutes"),
@@ -140,7 +142,7 @@ export class AuthService {
       id: user._id,
     });
 
-    await cacheProvider.set(
+    await this.cacheProvider.set(
       `refreshToken:${user._id.toString()}`,
       refreshToken,
       toSeconds(7, "days"),
@@ -156,7 +158,7 @@ export class AuthService {
     }
 
     const code = generateOtp();
-    await cacheProvider.set(
+    await this.cacheProvider.set(
       `${this.sendOtpKey}:${user._id.toString()}`,
       code,
       toSeconds(15, "minutes"),
@@ -172,8 +174,10 @@ export class AuthService {
     if (!user) {
       throw userErrors.userNotFound;
     }
-
-    const cachedCode = await cacheProvider.get(
+    if (!user.isVerified) {
+      throw userErrors.userNotVerified;
+    }
+    const cachedCode = await this.cacheProvider.get(
       `${this.login2FAKey}:${verifyLoginDto.email}`,
     );
     if (!cachedCode) {
@@ -198,13 +202,13 @@ export class AuthService {
     const refreshToken = generateRefreshToken({
       id: user._id,
     });
-    await cacheProvider.set(
+    await this.cacheProvider.set(
       `refreshToken:${user._id.toString()}`,
       refreshToken,
       toSeconds(7, "days"),
     );
 
-    await cacheProvider.del(`${this.login2FAKey}:${verifyLoginDto.email}`);
+    await this.cacheProvider.del(`${this.login2FAKey}:${verifyLoginDto.email}`);
 
     return { user, tokens: { accessToken, refreshToken } };
   };
@@ -218,7 +222,7 @@ export class AuthService {
       throw userErrors.userNotVerified;
     }
 
-    const otp = await cacheProvider.get(
+    const otp = await this.cacheProvider.get(
       `${this.sendOtpKey}:${user._id.toString()}`,
     );
     if (!otp) {
@@ -232,7 +236,7 @@ export class AuthService {
       { email: resetPasswordDto.email },
       { password: hashedPassword },
     );
-    await cacheProvider.del(`${this.sendOtpKey}:${user._id.toString()}`);
+    await this.cacheProvider.del(`${this.sendOtpKey}:${user._id.toString()}`);
   };
 
   loginWithGoogle = async (idToken: string) => {
@@ -249,12 +253,18 @@ export class AuthService {
     const refreshToken = generateRefreshToken({
       id: user?._id,
     });
-    await cacheProvider.set(
+    await this.cacheProvider.set(
       `refreshToken:${user?._id.toString()}`,
       refreshToken,
       toSeconds(7, "days"),
     );
     if (user) {
+      if (user.isDeleted) {
+        await this.userRepository.update(
+          { email: user.email },
+          { isDeleted: false },
+        );
+      }
       return { accessToken, refreshToken };
     }
     await this.userRepository.create({
@@ -273,11 +283,15 @@ export class AuthService {
     const payload = verifyRefreshToken(token);
 
     const user = await this.userRepository.getOne({ _id: payload.id });
-    if (!user || !user.isVerified) {
+    if (!user?.isVerified) {
+      throw userErrors.userNotVerified;
+    }
+    if (!user || user.isDeleted) {
       throw userErrors.userNotFound;
     }
-
-    const storedToken = await cacheProvider.get(`refreshToken:${payload.id}`);
+    const storedToken = await this.cacheProvider.get(
+      `refreshToken:${payload.id}`,
+    );
 
     if (!storedToken) {
       throw authErrors.refreshExpired;
@@ -291,7 +305,7 @@ export class AuthService {
     const refreshToken = generateRefreshToken({
       id: user._id,
     });
-    await cacheProvider.set(
+    await this.cacheProvider.set(
       `refreshToken:${user._id.toString()}`,
       refreshToken,
       toSeconds(7, "days"),
@@ -301,15 +315,18 @@ export class AuthService {
   };
   enable2StepVerification = async (enable2faDto: Enable2faDto) => {
     const user = await this.userRepository.findByEmail(enable2faDto.email);
-    if (!user) {
+    if (!user || user.isDeleted) {
       throw userErrors.userNotFound;
+    }
+    if (!user.isVerified) {
+      throw userErrors.userNotVerified;
     }
     if (user.twoStepVerification) {
       throw authErrors.twoFactorAuthEnabled;
     }
     const code = generateOtp();
 
-    await cacheProvider.set(
+    await this.cacheProvider.set(
       `${this.enable2FAKey}:${enable2faDto.email}`,
       code,
       toSeconds(3, "minutes"),
@@ -322,13 +339,15 @@ export class AuthService {
     );
   };
   verifyEnable2StepVerification = async (verify2faDto: Verify2faDto) => {
-    console.log("here");
     const user = await this.userRepository.findByEmail(verify2faDto.email);
-    if (!user) {
-      throw authErrors.wrongOtp;
+    if (!user?.isVerified) {
+      throw userErrors.userNotVerified;
+    }
+    if (!user || user.isDeleted) {
+      throw userErrors.userNotFound;
     }
 
-    const cachedCode = await cacheProvider.get(
+    const cachedCode = await this.cacheProvider.get(
       `${this.enable2FAKey}:${verify2faDto.email}`,
     );
     if (!cachedCode) {
@@ -342,6 +361,6 @@ export class AuthService {
       { email: verify2faDto.email },
       { twoStepVerification: true },
     );
-    await cacheProvider.del(`${this.enable2FAKey}:${verify2faDto.email}`);
+    await this.cacheProvider.del(`${this.enable2FAKey}:${verify2faDto.email}`);
   };
 }

@@ -3,10 +3,17 @@ import { inject, injectable } from "tsyringe";
 import { TOKENS } from "../../../lib/di/tokens";
 import { ICloudProvider } from "../../../pkg/cloud/cloud.interface";
 import { AppError } from "../../../pkg/error/error";
-import { GetProfileDto, UpdateProfileDto } from "../dto/user.dto";
+import {
+  GetProfileDto,
+  GetProfilesDto,
+  UpdateProfileDto,
+} from "../dto/user.dto";
 import * as userErrors from "../errors";
-import followRepository, { FollowRepository } from "../repository/follow.repo";
+import followRepository, {
+  FollowRepository,
+} from "../../follow/repository/follow.repo";
 import { UserRepository } from "./../repository/user.repo";
+import { ICacheProvider } from "../../../pkg/cache/cache.interface";
 @injectable()
 export class UserService {
   constructor(
@@ -14,8 +21,35 @@ export class UserService {
     private readonly userRepository: UserRepository,
     @inject(TOKENS.S3CloudProvider)
     private readonly cloudProvider: ICloudProvider,
+    @inject(TOKENS.CacheProvider)
+    private readonly cacheProvider: ICacheProvider,
   ) {}
   private followRepository: FollowRepository = followRepository;
+
+  getMe = async (userId: string) => {
+    const user = await this.userRepository.getOne({ _id: userId });
+    if (!user) {
+      throw userErrors.userNotFound;
+    }
+    user.password = undefined;
+    return user;
+  };
+  getProfiles = async (filters: GetProfilesDto) => {
+    const p = Math.max(1, Number(filters.page) || 1);
+    const l = Math.min(100, Math.max(1, Number(filters.limit) || 10));
+    const skip = (p - 1) * l;
+    const [data, total] = await this.userRepository.getProfiles(filters.q, {
+      skip,
+      limit: l,
+    });
+    const metaData = {
+      total,
+      page: p,
+      limit: l,
+      totalPages: Math.ceil(total / l),
+    };
+    return { profiles: data, metaData };
+  };
 
   getProfileByUsername = async (getProfileDto: GetProfileDto) => {
     const { username, viewerId } = getProfileDto;
@@ -66,6 +100,7 @@ export class UserService {
       },
     };
   };
+
   updateProfile = async (dto: UpdateProfileDto) => {
     const { userId, data } = dto;
 
@@ -118,6 +153,7 @@ export class UserService {
     const updatedUser = await this.userRepository.update(
       { _id: new Types.ObjectId(userId) },
       allowedUpdates,
+      { returnDocument: "after" },
     );
 
     return updatedUser;
@@ -192,5 +228,14 @@ export class UserService {
       { _id: userId },
       { $unset: { coverPicture: "" } },
     );
+  };
+  deactivate = async (userId: string) => {
+    const user = await this.userRepository.getOne({ _id: userId });
+    if (user?.isDeleted) {
+      throw userErrors.userNotFound;
+    }
+    await this.cacheProvider.del(`refreshToken:${userId}`);
+
+    await this.userRepository.update({ _id: userId }, { isDeleted: true });
   };
 }

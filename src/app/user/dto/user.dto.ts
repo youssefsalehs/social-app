@@ -14,3 +14,9 @@ export interface ToggleVisibilityDto {
     isPrivate?: boolean;
   };
 }
+
+export interface GetProfilesDto {
+  q: string;
+  limit: number;
+  page: number;
+}

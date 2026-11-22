@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 import { AbstractRepository } from "../../../lib/db/abstract.repository.js";
 import Follow, { FollowStatus } from "../model/follow.model";
-import { IFollow } from "./../interface/follow.interface";
+import { IFollow } from "../interface/follow.interface.js";
 
 export class FollowRepository extends AbstractRepository<IFollow> {
   constructor() {

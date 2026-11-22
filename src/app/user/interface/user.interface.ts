@@ -4,7 +4,7 @@ export interface IUser {
   username: string;
   email: string;
   provider: Provider;
-  password: string;
+  password?: string;
   isDeleted: boolean;
   isVerified: boolean;
   dob?: Date;

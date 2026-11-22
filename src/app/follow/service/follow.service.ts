@@ -1,9 +1,11 @@
 import { Types } from "mongoose";
 import { FollowStatus } from "../model/follow.model";
-import * as userErrors from "../errors";
+import * as userErrors from "../../user/errors";
 import { FollowDto, RespondFollow, UnFollowDto } from "../dto/follow.dto";
 import { AppError } from "../../../pkg/error/error";
-import userRepository, { UserRepository } from "../repository/user.repo";
+import userRepository, {
+  UserRepository,
+} from "../../user/repository/user.repo";
 import followRepository, { FollowRepository } from "../repository/follow.repo";
 
 export class FollowService {
