@@ -6,6 +6,7 @@ import { TOKENS } from "../../lib/di/tokens";
 import { PostController } from "./controller/post.controller";
 import { validate } from "../../lib/validation/validate";
 import { CreatePostDto, UpdatePostDto } from "./validation/post.validation";
+import { withCache } from "../../lib/cache/withCache";
 
 const postController = container.resolve<PostController>(TOKENS.PostController);
 const postRouter = Router();
@@ -30,7 +31,7 @@ postRouter.get("/feed", guard, postController.getPosts);
 //get active posts for user
 postRouter.get("/user/:userId", guard, postController.getActivePostsByUserId);
 
-postRouter.get("/:id", guard, postController.getPost);
+postRouter.get("/:id", withCache(300), guard, postController.getPost);
 
 postRouter.patch(
   "/:id",
