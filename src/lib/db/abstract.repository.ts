@@ -6,8 +6,16 @@ import {
   HydratedDocument,
   DeleteResult,
   UpdateQuery,
+  ProjectionType,
+  SortOrder,
+  PopulateOptions,
 } from "mongoose";
-
+export interface FindManyOptions {
+  skip?: number;
+  limit?: number;
+  sort?: Record<string, SortOrder>;
+  populate?: PopulateOptions | PopulateOptions[];
+}
 export abstract class AbstractRepository<T> {
   constructor(private readonly model: Model<T>) {}
   async create(data: Partial<T>): Promise<HydratedDocument<T> | null> {
@@ -23,7 +31,35 @@ export abstract class AbstractRepository<T> {
   async delete(filter: QueryFilter<T>): Promise<DeleteResult> {
     return this.model.deleteOne(filter);
   }
-  async getOne(filter: QueryFilter<T>): Promise<HydratedDocument<T> | null> {
-    return this.model.findOne(filter);
+  async getOne(
+    filter: QueryFilter<T>,
+    projection?: ProjectionType<T>,
+  ): Promise<HydratedDocument<T> | null> {
+    return this.model.findOne(filter, projection);
+  }
+
+  async getMany(filter: QueryFilter<T>, options: FindManyOptions = {}) {
+    const query = this.model.find(filter);
+
+    if (options.sort) {
+      query.sort(options.sort);
+    }
+
+    if (options.skip !== undefined) {
+      query.skip(options.skip);
+    }
+
+    if (options.limit !== undefined) {
+      query.limit(options.limit);
+    }
+
+    if (options.populate) {
+      query.populate(options.populate as PopulateOptions | PopulateOptions[]);
+    }
+
+    return query.exec();
+  }
+  async count(filter: QueryFilter<T>): Promise<number> {
+    return this.model.countDocuments(filter);
   }
 }

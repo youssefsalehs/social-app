@@ -1,8 +1,8 @@
 import { NextFunction, Request, Response } from "express";
 import { inject, injectable } from "tsyringe";
 import { TOKENS } from "../../../lib/di/tokens";
+import { CreatePostDto, PaginateDto, UpdatePostDto } from "../dto/post.dto";
 import { PostService } from "../service/post.service";
-import { CreatePostDto, UpdatePostDto, GetPostsQuery } from "../dto/post.dto";
 
 @injectable()
 export class PostController {
@@ -41,24 +41,26 @@ export class PostController {
   getPosts = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { posts, metaData } = await this.postService.getPosts(
-        req.query as unknown as GetPostsQuery,
+        req.query as unknown as PaginateDto,
       );
       return res.status(200).json({ success: true, data: posts, metaData });
     } catch (err) {
       return next(err);
     }
   };
+
   getMyPosts = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { posts, metaData } = await this.postService.getMyPosts(
+      const { posts, metaData } = await this.postService.getActivePosts(
         req?.user?.id as string,
-        req.query as unknown as GetPostsQuery,
+        req.query as unknown as PaginateDto,
       );
       return res.status(200).json({ success: true, data: posts, metaData });
     } catch (err) {
       return next(err);
     }
   };
+
   getMyHiddenPosts = async (
     req: Request,
     res: Response,
@@ -67,13 +69,30 @@ export class PostController {
     try {
       const { posts, metaData } = await this.postService.getMyHiddenPosts(
         req?.user?.id as string,
-        req.query as unknown as GetPostsQuery,
+        req.query as unknown as PaginateDto,
       );
       return res.status(200).json({ success: true, data: posts, metaData });
     } catch (err) {
       return next(err);
     }
   };
+
+  getActivePostsByUserId = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const { posts, metaData } = await this.postService.getActivePosts(
+        req?.params?.userId as string,
+        req.query as unknown as PaginateDto,
+      );
+      return res.status(200).json({ success: true, data: posts, metaData });
+    } catch (err) {
+      return next(err);
+    }
+  };
+
   updatePost = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const post = await this.postService.updatePost(

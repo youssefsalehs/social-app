@@ -2,10 +2,15 @@ import { Types } from "mongoose";
 import { inject, injectable } from "tsyringe";
 import { TOKENS } from "../../../lib/di/tokens";
 import { ICloudProvider } from "../../../pkg/cloud/cloud.interface";
-import { AppError } from "../../../pkg/error/error";
-import { PostRepository } from "../repository/post.repository";
-import { CreatePostDto, GetPostsQuery, UpdatePostDto } from "../dto/post.dto";
+import {
+  CreatePostDto,
+  PaginatedPosts,
+  PaginateDto,
+  UpdatePostDto,
+} from "../dto/post.dto";
 import * as postErrors from "../errors";
+import { IPost } from "../interface/post.interface";
+import { PostDocument, PostRepository } from "../repository/post.repository";
 
 @injectable()
 export class PostService {
@@ -15,16 +20,48 @@ export class PostService {
     @inject(TOKENS.S3CloudProvider)
     private readonly cloudProvider: ICloudProvider,
   ) {}
+  private getOwenedPost = async (postId: string, userId: string) => {
+    const post = await this.postRepository.getOne({
+      _id: new Types.ObjectId(postId),
+      isDeleted: false,
+    });
+    if (!post) {
+      throw postErrors.postNotFound;
+    }
+    this.assertOwnership(post, userId);
+    return post;
+  };
+  private assertOwnership = (post: PostDocument, userId: string) => {
+    if (post.userId.toString() !== userId) {
+      throw postErrors.postNotAuthorized;
+    }
+  };
+
+  private paginate = async (
+    filter: Record<string, unknown>,
+    { page = 1, limit = 10 }: PaginateDto,
+  ): Promise<PaginatedPosts<IPost>> => {
+    const parsedPage = Math.max(1, Number(page) || 1);
+    const parsedLimit = Math.min(50, Number(limit) || 10);
+    const { posts, total } = await this.postRepository.findPostsPaginated(
+      filter,
+      page,
+      limit,
+    );
+    return {
+      posts,
+      total,
+      page: parsedPage,
+      limit: parsedLimit,
+      totalPages: Math.ceil(total / limit),
+    };
+  };
 
   createPost = async (
     dto: CreatePostDto,
     userId: string,
     files: Express.Multer.File[] = [],
   ) => {
-    if ((!dto.content || !dto.content.trim()) && files.length == 0) {
-      throw postErrors.invalidPostContent;
-    }
-
     const mediaKeys: string[] = [];
     for (const file of files) {
       const key = await this.cloudProvider.uploadFile(
@@ -35,9 +72,8 @@ export class PostService {
     }
 
     const post = await this.postRepository.create({
-      content: dto.content.trim(),
+      ...dto,
       userId: new Types.ObjectId(userId),
-      allowsComments: dto.allowsComments ?? true,
       media: mediaKeys,
     });
     return post;
@@ -55,108 +91,71 @@ export class PostService {
   };
 
   //feed -> latestposts from all people you follow or not
-  getPosts = async ({ page = "1", limit = "20" }: GetPostsQuery) => {
-    const p = Math.max(1, Number(page) || 1);
-    const l = Math.min(100, Math.max(1, Number(limit) || 20));
-    const skip = (p - 1) * l;
-    const [posts, total] = await this.postRepository.getPosts(
+  getPosts = async (query: PaginateDto) => {
+    const { posts, total, page, limit, totalPages } = await this.paginate(
       { isDeleted: false },
-      { skip, limit: l },
+      query,
     );
+
     const metaData = {
       total,
-      page: p,
-      limit: l,
-      totalPages: Math.ceil(total / l),
+      page,
+      limit,
+      totalPages,
     };
     return { posts, metaData };
   };
-  getMyPosts = async (
-    userId: string,
-    { page = "1", limit = "20" }: GetPostsQuery,
-  ) => {
-    const p = Math.max(1, Number(page) || 1);
-    const l = Math.min(100, Math.max(1, Number(limit) || 20));
-    const skip = (p - 1) * l;
-    const [posts, total] = await this.postRepository.getPosts(
+
+  getActivePosts = async (userId: string, query: PaginateDto) => {
+    const { posts, total, page, limit, totalPages } = await this.paginate(
       {
         userId,
         isDeleted: false,
       },
-      { skip, limit: l },
+      query,
     );
+
     const metaData = {
       total,
-      page: p,
-      limit: l,
-      totalPages: Math.ceil(total / l),
+      page,
+      limit,
+      totalPages,
     };
+
     return { posts, metaData };
   };
-  getMyHiddenPosts = async (
-    userId: string,
-    { page = "1", limit = "20" }: GetPostsQuery,
-  ) => {
-    const p = Math.max(1, Number(page) || 1);
-    const l = Math.min(100, Math.max(1, Number(limit) || 20));
-    const skip = (p - 1) * l;
-    const [posts, total] = await this.postRepository.getPosts(
+
+  getMyHiddenPosts = async (userId: string, query: PaginateDto) => {
+    const { posts, total, page, limit, totalPages } = await this.paginate(
       {
         userId,
         isDeleted: true,
       },
-      { skip, limit: l },
+      query,
     );
+
     const metaData = {
       total,
-      page: p,
-      limit: l,
-      totalPages: Math.ceil(total / l),
+      page,
+      limit,
+      totalPages,
     };
+
     return { posts, metaData };
   };
   updatePost = async (postId: string, userId: string, dto: UpdatePostDto) => {
-    const post = await this.postRepository.getOne({
-      _id: new Types.ObjectId(postId),
-      isDeleted: false,
-    });
-    if (!post) {
-      throw postErrors.postNotFound;
-    }
-    if (post.userId.toString() !== userId) {
-      throw postErrors.postNotAuthorized;
-    }
-    const updates: Record<string, unknown> = {};
-    if (dto.content !== undefined) {
-      if (!dto.content.trim()) {
-        throw postErrors.invalidPostContent;
-      }
-      updates.content = dto.content.trim();
-    }
-    if (dto.allowsComments !== undefined) {
-      updates.allowsComments = dto.allowsComments;
-    }
-    if (Object.keys(updates).length === 0) {
-      throw new AppError("no valid fields provided for update", 400);
-    }
+    await this.getOwenedPost(postId, userId);
+
     const updated = await this.postRepository.update(
       { _id: new Types.ObjectId(postId) },
-      updates,
+      dto,
       { returnDocument: "after" },
     );
     return updated;
   };
 
   softDeletePost = async (postId: string, userId: string) => {
-    const post = await this.postRepository.getOne({
-      _id: new Types.ObjectId(postId),
-    });
-    if (!post) {
-      throw postErrors.postNotFound;
-    }
-    if (post.userId.toString() !== userId) {
-      throw postErrors.postNotAuthorized;
-    }
+    await this.getOwenedPost(postId, userId);
 
     await this.postRepository.update(
       { _id: new Types.ObjectId(postId) },
@@ -164,16 +163,7 @@ export class PostService {
     );
   };
   hardDeletePost = async (postId: string, userId: string) => {
-    const post = await this.postRepository.getOne({
-      _id: new Types.ObjectId(postId),
-    });
-    if (!post) {
-      throw postErrors.postNotFound;
-    }
-    if (post.userId.toString() !== userId) {
-      throw postErrors.postNotAuthorized;
-    }
-
+    const post = await this.getOwenedPost(postId, userId);
     if (post.media && post.media.length > 0) {
       await Promise.all(
         post.media.map((key) => this.cloudProvider.deleteFile(key)),

@@ -8,7 +8,15 @@ export interface UpdatePostDto {
   allowsComments?: boolean;
 }
 
-export interface GetPostsQuery {
-  page?: string;
-  limit?: string;
+export interface PaginateDto {
+  page: number;
+  limit: number;
+}
+
+export interface PaginatedPosts<T> {
+  posts: T[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
