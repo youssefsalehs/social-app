@@ -9,24 +9,13 @@ export class UserController {
   constructor(
     @inject(TOKENS.UserService) private readonly userService: UserService,
   ) {}
-  getMe = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const profile = await this.userService.getMe(req?.user?.id as string);
 
-      return res.status(200).json({
-        success: true,
-        data: profile,
-      });
-    } catch (error) {
-      return next(error);
-    }
-  };
-  getProfile = async (req: Request, res: Response, next: NextFunction) => {
+  getUserProfile = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const profile = await this.userService.getProfileByUsername({
-        username: req.params.username as string,
-        viewerId: req.user?.id,
-      });
+      const profile = await this.userService.getProfileByUsername(
+        req.params.username as string,
+        req?.user?.id as string,
+      );
       res.status(200).json({ success: true, data: profile });
     } catch (error) {
       next(error);
@@ -62,22 +51,6 @@ export class UserController {
     }
   };
 
-  updateProfile = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const updatedProfile = await this.userService.updateProfile(
-        req.user!.id,
-        req.body,
-      );
-      res.status(200).json({
-        success: true,
-        message: "user details updated",
-        data: updatedProfile,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
   toggleProfileVisibility = async (
     req: Request,
     res: Response,
@@ -90,6 +63,34 @@ export class UserController {
       res.status(200).json({
         success: true,
         message: `profile is ${isPrivate ? "private" : "public"} now`,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+  getMe = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await this.userService.getMe(req?.user?.id as string);
+
+      return res.status(200).json({
+        success: true,
+        data: profile,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  updateProfile = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const updatedProfile = await this.userService.updateProfile(
+        req.user!.id,
+        req.body,
+      );
+      res.status(200).json({
+        success: true,
+        message: "user details updated",
+        data: updatedProfile,
       });
     } catch (error) {
       next(error);

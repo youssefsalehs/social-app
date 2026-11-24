@@ -36,6 +36,6 @@ userRouter.patch(
 );
 userRouter.delete("/deactivate", guard, userController.deactivate);
 userRouter.get("/suggestions", guard, userController.getSuggestions);
-userRouter.get("/:username", guard, userController.getProfile);
+userRouter.get("/:username", guard, userController.getUserProfile);
 
 export { userRouter };

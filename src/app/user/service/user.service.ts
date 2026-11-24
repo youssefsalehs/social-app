@@ -5,11 +5,7 @@ import { ICacheProvider } from "../../../pkg/cache/cache.interface";
 import { ICloudProvider } from "../../../pkg/cloud/cloud.interface";
 import { AppError } from "../../../pkg/error/error";
 import { FollowRepository } from "../../follow/repository/follow.repo";
-import {
-  GetProfileDto,
-  GetProfilesDto,
-  GetSuggestionsDto,
-} from "../dto/user.dto";
+import { GetProfilesDto, GetSuggestionsDto } from "../dto/user.dto";
 import * as userErrors from "../errors";
 import { IUser } from "../interface/user.interface";
 import { UserRepository } from "./../repository/user.repo";
@@ -73,37 +69,6 @@ export class UserService {
     };
   };
 
-  getProfileByUsername = async (getProfileDto: GetProfileDto) => {
-    const { username, viewerId } = getProfileDto;
-    const targetUser = await this.userRepository.findByUsername(username);
-    if (!targetUser) {
-      throw userErrors.userNotFound;
-    }
-
-    let followStatus = null;
-    const isOwnProfile = viewerId
-      ? viewerId.toString() === targetUser._id.toString()
-      : false;
-
-    if (viewerId && !isOwnProfile) {
-      const followRecord = await this.followRepository.getOne({
-        follower: viewerId,
-        following: targetUser._id,
-      });
-      if (followRecord) {
-        followStatus = followRecord.status;
-      }
-    }
-
-    return {
-      ...targetUser,
-      viewerContext: {
-        isOwnProfile,
-        followStatus,
-      },
-    };
-  };
-
   toggleProfileVisibility = async (userId: string) => {
     const existingUser = await this.findActiveUserOrThrow(userId);
     const newIsPrivate = !existingUser.isPrivate;
@@ -133,6 +98,51 @@ export class UserService {
     }
 
     return newIsPrivate;
+  };
+
+  getProfileByUsername = async (username: string, viewerId?: string) => {
+    const targetUser = await this.userRepository.findByUsername(username);
+    if (!targetUser) {
+      throw userErrors.userNotFound;
+    }
+
+    const isOwnProfile = viewerId
+      ? viewerId === targetUser._id.toString()
+      : false;
+
+    const viewerContext: {
+      followStatus?: string;
+      incomingRequestStatus?: string;
+    } = {};
+    if (viewerId && !isOwnProfile) {
+      const [outgoingFollow, incomingFollow] = await Promise.all([
+        this.followRepository.getOne({
+          follower: viewerId,
+          following: targetUser._id,
+        }),
+        this.followRepository.getOne({
+          follower: targetUser._id,
+          following: viewerId,
+        }),
+      ]);
+
+      if (outgoingFollow) {
+        viewerContext.followStatus =
+          outgoingFollow.status === 0 ? "pending request" : "following";
+      }
+
+      if (incomingFollow) {
+        viewerContext.incomingRequestStatus =
+          incomingFollow.status === 0 ? "pending your approval" : "follows you";
+      }
+    }
+
+    const userObj = targetUser.toObject();
+
+    return {
+      ...userObj,
+      ...(Object.keys(viewerContext).length > 0 && { viewerContext }),
+    };
   };
 
   getMe = async (userId: string) => {
