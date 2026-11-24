@@ -10,18 +10,6 @@ export class UserController {
     @inject(TOKENS.UserService) private readonly userService: UserService,
   ) {}
 
-  getUserProfile = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const profile = await this.userService.getProfileByUsername(
-        req.params.username as string,
-        req?.user?.id as string,
-      );
-      res.status(200).json({ success: true, data: profile });
-    } catch (error) {
-      next(error);
-    }
-  };
-
   getProfiles = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const filters = req.query;
@@ -68,6 +56,18 @@ export class UserController {
       next(error);
     }
   };
+  getUserProfile = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await this.userService.getProfileByUsername(
+        req.params.username as string,
+        req?.user?.id as string,
+      );
+      res.status(200).json({ success: true, data: profile });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getMe = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const profile = await this.userService.getMe(req?.user?.id as string);
