@@ -1,14 +1,13 @@
 import {
-  Model,
-  QueryFilter,
-  Types,
-  QueryOptions,
-  HydratedDocument,
   DeleteResult,
-  UpdateQuery,
-  ProjectionType,
-  SortOrder,
+  HydratedDocument,
+  Model,
   PopulateOptions,
+  ProjectionType,
+  QueryFilter,
+  QueryOptions,
+  SortOrder,
+  UpdateQuery,
 } from "mongoose";
 export interface FindManyOptions {
   skip?: number;
@@ -34,8 +33,13 @@ export abstract class AbstractRepository<T> {
   async getOne(
     filter: QueryFilter<T>,
     projection?: ProjectionType<T>,
+    populate?: PopulateOptions | PopulateOptions[] | string,
   ): Promise<HydratedDocument<T> | null> {
-    return this.model.findOne(filter, projection);
+    const query = this.model.findOne(filter, projection);
+    if (populate) {
+      query.populate(populate as any);
+    }
+    return query;
   }
 
   async getMany(filter: QueryFilter<T>, options: FindManyOptions = {}) {

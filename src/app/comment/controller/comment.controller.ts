@@ -22,21 +22,33 @@ export class CommentController {
         req.user!.id,
         (req.files as Express.Multer.File[]) || [],
       );
-      return res
-        .status(201)
-        .json({
-          success: true,
-          message: "comment created successfully",
-          data: comment,
-        });
+      return res.status(201).json({
+        success: true,
+        message: "comment created successfully",
+        data: comment,
+      });
     } catch (err) {
       return next(err);
     }
   };
-
-  getComments = async (req: Request, res: Response, next: NextFunction) => {
+  getCommentReplies = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+    } catch (error) {
+      return next(error);
+    }
+  };
+  getCommentsForPost = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
       const { comments, metaData } = await this.commentService.getComments(
+        req.params.postId as string,
         req.query as unknown as GetCommentsQuery,
       );
       return res.status(200).json({ success: true, data: comments, metaData });
@@ -63,13 +75,11 @@ export class CommentController {
         req.user!.id,
         req.body as UpdateCommentDto,
       );
-      return res
-        .status(200)
-        .json({
-          success: true,
-          message: "updated comment successfully",
-          data: comment,
-        });
+      return res.status(200).json({
+        success: true,
+        message: "updated comment successfully",
+        data: comment,
+      });
     } catch (err) {
       return next(err);
     }

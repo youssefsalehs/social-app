@@ -80,10 +80,17 @@ export class PostService {
   };
 
   getPost = async (postId: string) => {
-    const post = await this.postRepository.getOne({
-      _id: new Types.ObjectId(postId),
-      isDeleted: false,
-    });
+    const post = await this.postRepository.getOne(
+      {
+        _id: new Types.ObjectId(postId),
+        isDeleted: false,
+      },
+      {},
+      {
+        path: "userId",
+        select: "username profilePicture",
+      },
+    );
     if (!post) {
       throw postErrors.postNotFound;
     }

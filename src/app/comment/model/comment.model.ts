@@ -7,7 +7,7 @@ const schema = new Schema<IComment>(
     userId: { type: Types.ObjectId, ref: "User", required: true },
     postId: { type: Types.ObjectId, ref: "Post", required: true },
     parentId: { type: Types.ObjectId, ref: "Comment" },
-    reactionsCount: { type: Number, default: 0 },
+    reactionsCount: { type: Number, default: 0, min: 0 },
     media: { type: [String], default: [] },
   },
   {

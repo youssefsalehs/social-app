@@ -12,8 +12,14 @@ const commentRouter = Router();
 
 commentRouter
   .route("/")
-  .post(guard, multerUploadArray("media", 5), commentController.createComment)
-  .get(guard, commentController.getComments);
+  .post(guard, multerUploadArray("media", 5), commentController.createComment);
+
+commentRouter.get("/post/:postId", guard, commentController.getCommentsForPost);
+//get replies of the comment
+commentRouter
+  .route("/:id/replies")
+  .get(guard, commentController.getCommentReplies);
+
 commentRouter
   .route("/:id")
   .get(guard, commentController.getComment)

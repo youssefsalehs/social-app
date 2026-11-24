@@ -27,14 +27,4 @@ export class PostRepository extends AbstractRepository<IPost> {
     ]);
     return { posts, total };
   }
-  async getPosts(
-    filter: QueryFilter<IPost>,
-    { skip, limit }: { skip: number; limit: number },
-  ): Promise<[PostDocument[], number]> {
-    const [data, total] = await Promise.all([
-      Post.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
-      Post.countDocuments(filter),
-    ]);
-    return [data, total];
-  }
 }

@@ -9,7 +9,6 @@ export interface UpdateCommentDto {
 }
 
 export interface GetCommentsQuery {
-  postId: string;
   page?: string;
   limit?: string;
 }

@@ -98,11 +98,10 @@ export class CommentService {
     return comment;
   };
 
-  getComments = async ({
-    postId,
-    page = "1",
-    limit = "20",
-  }: GetCommentsQuery) => {
+  getComments = async (
+    postId: string,
+    { page = "1", limit = "20" }: GetCommentsQuery,
+  ) => {
     if (!postId) {
       throw new AppError("postId is required", 400);
     }
