@@ -1,12 +1,12 @@
 import { NextFunction, Request, Response } from "express";
 import { inject, injectable } from "tsyringe";
 import { TOKENS } from "../../../lib/di/tokens";
-import { CommentService } from "../service/comment.service";
 import {
   CreateCommentDto,
-  GetCommentsQuery,
+  PaginateDto,
   UpdateCommentDto,
 } from "../dto/comment.dto";
+import { CommentService } from "../service/comment.service";
 
 @injectable()
 export class CommentController {
@@ -15,30 +15,20 @@ export class CommentController {
     private readonly commentService: CommentService,
   ) {}
 
-  createComment = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const comment = await this.commentService.createComment(
-        req.body as CreateCommentDto,
-        req.user!.id,
-        (req.files as Express.Multer.File[]) || [],
-      );
-      return res.status(201).json({
-        success: true,
-        message: "comment created successfully",
-        data: comment,
-      });
-    } catch (err) {
-      return next(err);
-    }
-  };
   getCommentReplies = async (
     req: Request,
     res: Response,
     next: NextFunction,
   ) => {
     try {
-    } catch (error) {
-      return next(error);
+      const { id } = req.params;
+      const { comments, metaData } = await this.commentService.getReplies(
+        id as string,
+        req.query as unknown as PaginateDto,
+      );
+      return res.status(200).json({ success: true, data: comments, metaData });
+    } catch (err) {
+      return next(err);
     }
   };
   getCommentsForPost = async (
@@ -49,7 +39,7 @@ export class CommentController {
     try {
       const { comments, metaData } = await this.commentService.getComments(
         req.params.postId as string,
-        req.query as unknown as GetCommentsQuery,
+        req.query as unknown as PaginateDto,
       );
       return res.status(200).json({ success: true, data: comments, metaData });
     } catch (err) {
@@ -67,7 +57,22 @@ export class CommentController {
       return next(err);
     }
   };
-
+  createComment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const comment = await this.commentService.createComment(
+        req.body as CreateCommentDto,
+        req.user!.id,
+        (req.files as Express.Multer.File[]) || [],
+      );
+      return res.status(201).json({
+        success: true,
+        message: "comment created successfully",
+        data: comment,
+      });
+    } catch (err) {
+      return next(err);
+    }
+  };
   updateComment = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const comment = await this.commentService.updateComment(

@@ -14,5 +14,8 @@ const schema = new Schema<IComment>(
     timestamps: true,
   },
 );
+schema.index({ postId: 1, parentId: 1, createdAt: -1 });
+schema.index({ parentId: 1, createdAt: 1 });
+schema.index({ userId: 1 });
 const Comment = model<IComment>("Comment", schema);
 export default Comment;

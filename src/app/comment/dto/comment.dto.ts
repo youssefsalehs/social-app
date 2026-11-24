@@ -8,7 +8,15 @@ export interface UpdateCommentDto {
   content?: string;
 }
 
-export interface GetCommentsQuery {
-  page?: string;
-  limit?: string;
+export interface PaginateDto {
+  page: number;
+  limit: number;
+}
+
+export interface PaginatedComments<T> {
+  comments: T[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }

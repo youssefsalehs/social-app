@@ -3,15 +3,17 @@ import { inject, injectable } from "tsyringe";
 import { TOKENS } from "../../../lib/di/tokens";
 import { ICloudProvider } from "../../../pkg/cloud/cloud.interface";
 import { AppError } from "../../../pkg/error/error";
-import { PostRepository } from "../../post/repository/post.repository";
 import * as postErrors from "../../post/errors";
-import { CommentRepository } from "../repository/comment.repository";
+import { PostRepository } from "../../post/repository/post.repository";
 import {
   CreateCommentDto,
-  GetCommentsQuery,
+  PaginatedComments,
+  PaginateDto,
   UpdateCommentDto,
 } from "../dto/comment.dto";
 import * as commentErrors from "../errors";
+import { IComment } from "../interface/comment.interface";
+import { CommentRepository } from "../repository/comment.repository";
 
 @injectable()
 export class CommentService {
@@ -23,10 +25,26 @@ export class CommentService {
     @inject(TOKENS.S3CloudProvider)
     private readonly cloudProvider: ICloudProvider,
   ) {}
-
+  private paginate = async (
+    filter: Record<string, unknown>,
+    { page = 1, limit = 10 }: PaginateDto,
+  ): Promise<PaginatedComments<IComment>> => {
+    const parsedPage = Math.max(1, Number(page) || 1);
+    const parsedLimit = Math.min(50, Number(limit) || 10);
+    const { comments, total } =
+      await this.commentRepository.findCommentsPaginated(filter, page, limit);
+    return {
+      comments,
+      total,
+      page: parsedPage,
+      limit: parsedLimit,
+      totalPages: Math.ceil(total / limit),
+    };
+  };
   private async getPostForComment(postId: string) {
     const post = await this.postRepository.getOne({
       _id: new Types.ObjectId(postId),
+      isDeleted: false,
     });
     if (!post) {
       throw postErrors.postNotFound;
@@ -37,18 +55,59 @@ export class CommentService {
     return post;
   }
 
+  getComments = async (postId: string, query: PaginateDto) => {
+    if (!postId) {
+      throw new AppError("postId is required", 400);
+    }
+    const { comments, total, page, limit, totalPages } = await this.paginate(
+      {
+        postId: new Types.ObjectId(postId),
+        parentId: { $exists: false },
+      },
+      query,
+    );
+
+    const metaData = {
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+    return { comments, metaData };
+  };
+
+  getReplies = async (commentId: string, query: PaginateDto) => {
+    const { comments, total, page, limit, totalPages } = await this.paginate(
+      {
+        parentId: new Types.ObjectId(commentId),
+      },
+      query,
+    );
+
+    const metaData = {
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+    return { comments, metaData };
+  };
+
+  getComment = async (commentId: string) => {
+    const comment = await this.commentRepository.getOne({
+      _id: new Types.ObjectId(commentId),
+    });
+    if (!comment) {
+      throw commentErrors.commentNotFound;
+    }
+    return comment;
+  };
+
   createComment = async (
     dto: CreateCommentDto,
     userId: string,
     files: Express.Multer.File[] = [],
   ) => {
-    if (!dto.postId) {
-      throw new AppError("postId is required", 400);
-    }
-    if (!dto.content || !dto.content.trim()) {
-      throw commentErrors.invalidCommentContent;
-    }
-
     const post = await this.getPostForComment(dto.postId);
 
     let parentId: Types.ObjectId | undefined;
@@ -78,49 +137,8 @@ export class CommentService {
       media: mediaKeys,
     });
 
-    const updates = {
-      commentsCount: post.commentsCount + 1,
-    };
-    await this.postRepository.update(
-      { _id: new Types.ObjectId(dto.postId) },
-      updates,
-    );
+    await this.postRepository.incrementCounter(post._id, "commentsCount", 1);
     return comment;
-  };
-
-  getComment = async (commentId: string) => {
-    const comment = await this.commentRepository.getOne({
-      _id: new Types.ObjectId(commentId),
-    });
-    if (!comment) {
-      throw commentErrors.commentNotFound;
-    }
-    return comment;
-  };
-
-  getComments = async (
-    postId: string,
-    { page = "1", limit = "20" }: GetCommentsQuery,
-  ) => {
-    if (!postId) {
-      throw new AppError("postId is required", 400);
-    }
-    const p = Math.max(1, Number(page) || 1);
-    const l = Math.min(100, Math.max(1, Number(limit) || 20));
-    const skip = (p - 1) * l;
-    const [comments, total] = await this.commentRepository.getComments(
-      {
-        postId: new Types.ObjectId(postId),
-      },
-      { skip, limit: l },
-    );
-    const metaData = {
-      total,
-      limit: l,
-      page: p,
-      toatlPages: Math.ceil(total / l),
-    };
-    return { comments, metaData };
   };
 
   updateComment = async (
@@ -137,19 +155,10 @@ export class CommentService {
     if (comment.userId.toString() !== userId) {
       throw commentErrors.commentNotAuthorized;
     }
-    const updates: Record<string, unknown> = {};
-    if (dto.content !== undefined) {
-      if (!dto.content.trim()) {
-        throw commentErrors.invalidCommentContent;
-      }
-      updates.content = dto.content.trim();
-    }
-    if (Object.keys(updates).length === 0) {
-      throw new AppError("no valid fields provided for update", 400);
-    }
+
     const updated = await this.commentRepository.update(
       { _id: new Types.ObjectId(commentId) },
-      updates,
+      dto,
       { returnDocument: "after" },
     );
     return updated;
@@ -158,25 +167,28 @@ export class CommentService {
   deleteComment = async (commentId: string, userId: string) => {
     const comment = await this.commentRepository.getOne({
       _id: new Types.ObjectId(commentId),
-      isDeleted: false,
     });
     if (!comment) {
       throw commentErrors.commentNotFound;
     }
-    if (comment.userId.toString() !== userId) {
-      throw commentErrors.commentNotAuthorized;
-    }
-
-    await this.commentRepository.delete({ _id: new Types.ObjectId(commentId) });
 
     const post = await this.postRepository.getOne({
       _id: comment.postId,
+      isDeleted: false,
     });
-    if (post && !post.isDeleted) {
-      const updates = {
-        commentsCount: Math.max(0, post.commentsCount - 1),
-      };
-      await this.postRepository.update({ _id: comment.postId }, updates);
+    if (!post) {
+      throw postErrors.postNotFound;
     }
+    const isCommentAuthor = comment.userId.toString() === userId;
+    const isPostOwner = post?.userId?.toString() === userId;
+
+    if (!isCommentAuthor && !isPostOwner) {
+      throw commentErrors.commentNotAuthorized;
+    }
+
+    const deletedCount =
+      await this.commentRepository.deleteWithDescendants(commentId);
+    const by = -deletedCount;
+    await this.postRepository.incrementCounter(post._id, "commentsCount", by);
   };
 }
