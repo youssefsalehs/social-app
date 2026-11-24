@@ -12,9 +12,6 @@ export class FollowRepository extends AbstractRepository<IFollow> {
   constructor() {
     super(Follow);
   }
-  getPendingRequests = async (userId: string) => {
-    return await Follow.find();
-  };
 
   async findPaginated(
     filter: QueryFilter<IFollow>,
@@ -33,15 +30,6 @@ export class FollowRepository extends AbstractRepository<IFollow> {
     ]);
     return { data, total };
   }
-  getList = async (
-    filter: QueryFilter<IFollow>,
-    populateField: "follower" | "following",
-  ) => {
-    return await Follow.find(filter)
-      .populate(populateField, "username name profilePicture")
-      .sort({ createdAt: -1 })
-      .lean();
-  };
 
   acceptAllPendingRequests = async (
     followingId: string,
