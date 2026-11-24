@@ -1,22 +1,40 @@
-import { Types } from "mongoose";
+import { QueryFilter, Types } from "mongoose";
 import { AbstractRepository } from "../../../lib/db/abstract.repository.js";
 import Follow, { FollowStatus } from "../model/follow.model";
 import { IFollow } from "../interface/follow.interface.js";
 import { injectable } from "tsyringe";
-
+const userPopulate = [
+  { path: "follower", select: "username profilePicture" },
+  { path: "following", select: "username profilePicture" },
+];
 injectable();
 export class FollowRepository extends AbstractRepository<IFollow> {
   constructor() {
     super(Follow);
   }
   getPendingRequests = async (userId: string) => {
-    return await Follow.find({
-      following: userId,
-      status: FollowStatus.PENDING,
-    });
+    return await Follow.find();
   };
-  getFollowList = async (
-    filter: object,
+
+  async findPaginated(
+    filter: QueryFilter<IFollow>,
+    page: number,
+    limit: number,
+    newestFirst: boolean = true,
+  ) {
+    const [data, total] = await Promise.all([
+      this.getMany(filter, {
+        skip: (page - 1) * limit,
+        limit,
+        sort: { createdAt: newestFirst ? -1 : 1 },
+        populate: userPopulate,
+      }),
+      Follow.countDocuments(filter),
+    ]);
+    return { data, total };
+  }
+  getList = async (
+    filter: QueryFilter<IFollow>,
     populateField: "follower" | "following",
   ) => {
     return await Follow.find(filter)
@@ -24,6 +42,7 @@ export class FollowRepository extends AbstractRepository<IFollow> {
       .sort({ createdAt: -1 })
       .lean();
   };
+
   acceptAllPendingRequests = async (
     followingId: string,
   ): Promise<Types.ObjectId[]> => {

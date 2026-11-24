@@ -8,18 +8,22 @@ const followController = container.resolve<FollowController>(
 );
 
 export const followRouter = Router();
+
 followRouter.get(
   "/pending-requests",
   guard,
   followController.getPendingRequests,
 );
+
 followRouter
-  .route("/:id")
+  .route("/:followingId")
   .post(guard, followController.followUser)
   .delete(guard, followController.unfollowUser);
+
 followRouter.patch(
-  "/request/:followerId",
+  "/request/follower/:followerId",
   guard,
+
   followController.respondToRequest,
 );
 

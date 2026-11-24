@@ -4,28 +4,29 @@ import { IUser } from "../interface/user.interface.js";
 import User, { type UserDocument } from "../model/user.model";
 import { injectable } from "tsyringe";
 import { HydratedDocument } from "mongoose";
-
+export type UserCounter = "followersCount" | "followingCount";
 @injectable()
 export class UserRepository extends AbstractRepository<IUser> {
   constructor() {
     super(User);
   }
+
   async findByEmail(email: string): Promise<UserDocument | null> {
     return User.findOne({ email });
   }
-  async updateFollowersCount(userId: Types.ObjectId, amount: number) {
-    return User.updateOne(
+
+  async incrementCounter(
+    userId: Types.ObjectId,
+    field: UserCounter,
+    by: number,
+  ): Promise<UserDocument | null> {
+    return this.update(
       { _id: userId },
-      { $inc: { followersCount: amount } },
+      { $inc: { [field]: by } },
+      { returnDocument: "after" },
     );
   }
 
-  async updateFollowingCount(userId: Types.ObjectId, amount: number) {
-    return User.updateOne(
-      { _id: userId },
-      { $inc: { followingCount: amount } },
-    );
-  }
   bulkIncrementFollowingCount = async (
     userIds: Types.ObjectId[],
     amount: number = 1,
@@ -35,6 +36,7 @@ export class UserRepository extends AbstractRepository<IUser> {
       { $inc: { followingCount: amount } },
     );
   };
+
   async findByUsername(username: string): Promise<UserDocument | null> {
     return User.findOne({
       username: username.toLowerCase(),
