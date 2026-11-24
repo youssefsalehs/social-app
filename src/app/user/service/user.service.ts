@@ -9,7 +9,6 @@ import {
   GetProfileDto,
   GetProfilesDto,
   GetSuggestionsDto,
-  UpdateProfileDto,
 } from "../dto/user.dto";
 import * as userErrors from "../errors";
 import { IUser } from "../interface/user.interface";
@@ -25,23 +24,6 @@ export class UserService {
     private readonly cacheProvider: ICacheProvider,
     @inject(TOKENS.FollowRepository) private followRepository: FollowRepository,
   ) {}
-
-  getMe = async (userId: string) => {
-    const user = await this.userRepository.getOne({ _id: userId });
-    if (!user) {
-      throw userErrors.userNotFound;
-    }
-    user.password = undefined;
-    return user;
-  };
-  private getFollowedIds = async (viewerId: string): Promise<Set<string>> => {
-    const records = await this.followRepository.getFollowingIds(
-      new Types.ObjectId(viewerId),
-    );
-    const followedIds = new Set<string>();
-    records.forEach((id) => followedIds.add(id.toString()));
-    return followedIds;
-  };
 
   getProfiles = async (filters: GetProfilesDto, viewerId: string) => {
     const p = Math.max(1, Number(filters.page) || 1);
@@ -122,70 +104,8 @@ export class UserService {
     };
   };
 
-  updateProfile = async (dto: UpdateProfileDto) => {
-    const { userId, data } = dto;
-
-    const existingUser = await this.userRepository.getOne({
-      _id: new Types.ObjectId(userId),
-    });
-
-    if (!existingUser || existingUser.isDeleted) {
-      throw userErrors.userNotFound;
-    }
-
-    const {
-      password,
-      followersCount,
-      followingCount,
-      isDeleted,
-      isVerified,
-      provider,
-      twoStepVerification,
-      isPrivate,
-      coverPicture,
-      profilePicture,
-      ...allowedUpdates
-    } = data;
-
-    if (Object.keys(allowedUpdates).length === 0) {
-      throw new AppError("No valid fields provided for update", 400);
-    }
-
-    if (
-      allowedUpdates.username &&
-      allowedUpdates.username !== existingUser.username
-    ) {
-      const usernameTaken = await this.userRepository.getOne({
-        username: allowedUpdates.username,
-      });
-      if (usernameTaken) {
-        throw new AppError("Username is already taken", 409);
-      }
-    }
-    if (allowedUpdates.email && allowedUpdates.email !== existingUser.email) {
-      const emailTaken = await this.userRepository.getOne({
-        email: allowedUpdates.email,
-      });
-      if (emailTaken) {
-        throw new AppError("email is already taken", 409);
-      }
-    }
-
-    const updatedUser = await this.userRepository.update(
-      { _id: new Types.ObjectId(userId) },
-      allowedUpdates,
-      { returnDocument: "after" },
-    );
-
-    return updatedUser;
-  };
   toggleProfileVisibility = async (userId: string) => {
-    const existingUser = await this.userRepository.getOne({
-      _id: new Types.ObjectId(userId),
-    });
-    if (!existingUser || existingUser.isDeleted) {
-      throw userErrors.userNotFound;
-    }
+    const existingUser = await this.findActiveUserOrThrow(userId);
     const newIsPrivate = !existingUser.isPrivate;
 
     await this.userRepository.update(
@@ -199,8 +119,9 @@ export class UserService {
 
       if (acceptedFollowerIds.length > 0) {
         await Promise.all([
-          this.userRepository.updateFollowersCount(
-            new Types.ObjectId(userId),
+          this.userRepository.incrementCounter(
+            existingUser._id,
+            "followersCount",
             acceptedFollowerIds.length,
           ),
           this.userRepository.bulkIncrementFollowingCount(
@@ -214,49 +135,107 @@ export class UserService {
     return newIsPrivate;
   };
 
-  uploadProfilePicture = async (file: Express.Multer.File, userId: string) => {
-    const key = await this.cloudProvider.uploadFile(
-      file,
-      `users/${userId}/profile-pictures`,
-    );
-    this.userRepository.update({ _id: userId }, { profilePicture: key });
+  getMe = async (userId: string) => {
+    const user = await this.findActiveUserOrThrow(userId);
+    user.password = undefined;
+    return user;
   };
-  uploadCoverPicture = async (file: Express.Multer.File, userId: string) => {
-    const key = await this.cloudProvider.uploadFile(
-      file,
-      `users/${userId}/cover-pictures`,
-    );
-    this.userRepository.update({ _id: userId }, { coverPicture: key });
-  };
-  deleteProfilePicture = async (userId: string) => {
-    const user = await this.userRepository.getOne({ _id: userId });
-    if (!user?.profilePicture || user.profilePicture === "") {
-      throw new AppError("no profile picture found to delete", 404);
-    }
-    await this.cloudProvider.deleteFile(user?.profilePicture as string);
-    await this.userRepository.update(
-      { _id: userId },
-      { $unset: { profilePicture: "" } },
-    );
-  };
-  deleteCoverPicture = async (userId: string) => {
-    const user = await this.userRepository.getOne({ _id: userId });
-    if (!user?.coverPicture || user.coverPicture === "") {
-      throw new AppError("no cover picture found to delete", 404);
-    }
-    await this.cloudProvider.deleteFile(user?.coverPicture as string);
-    await this.userRepository.update(
-      { _id: userId },
-      { $unset: { coverPicture: "" } },
-    );
-  };
-  deactivate = async (userId: string) => {
-    const user = await this.userRepository.getOne({ _id: userId });
-    if (user?.isDeleted) {
-      throw userErrors.userNotFound;
-    }
-    await this.cacheProvider.del(`refreshToken:${userId}`);
 
+  updateProfile = async (userId: string, dto: Partial<IUser>) => {
+    const existingUser = await this.findActiveUserOrThrow(userId);
+
+    if (dto.username && dto.username !== existingUser.username) {
+      const usernameTaken = await this.userRepository.getOne({
+        username: dto.username,
+      });
+      if (usernameTaken) {
+        throw new AppError("Username is already taken", 409);
+      }
+    }
+    if (dto.email && dto.email !== existingUser.email) {
+      const emailTaken = await this.userRepository.getOne({
+        email: dto.email,
+      });
+      if (emailTaken) {
+        throw new AppError("email is already taken", 409);
+      }
+    }
+
+    const updatedUser = await this.userRepository.update(
+      { _id: new Types.ObjectId(userId) },
+      dto,
+      { returnDocument: "after" },
+    );
+
+    return updatedUser;
+  };
+
+  uploadProfilePicture = (file: Express.Multer.File, userId: string) =>
+    this.uploadUserImage(file, userId, "profile-pictures", "profilePicture");
+
+  uploadCoverPicture = (file: Express.Multer.File, userId: string) =>
+    this.uploadUserImage(file, userId, "cover-pictures", "coverPicture");
+
+  deleteProfilePicture = (userId: string) =>
+    this.deleteUserMedia(userId, "profilePicture");
+
+  deleteCoverPicture = (userId: string) =>
+    this.deleteUserMedia(userId, "coverPicture");
+
+  deactivate = async (userId: string) => {
+    await this.findActiveUserOrThrow(userId);
+    await this.cacheProvider.del(`refreshToken:${userId}`);
     await this.userRepository.update({ _id: userId }, { isDeleted: true });
   };
+
+  private async findActiveUserOrThrow(userId: string) {
+    const user = await this.userRepository.getOne({
+      _id: new Types.ObjectId(userId),
+      isDeleted: false,
+    });
+
+    if (!user) {
+      throw userErrors.userNotFound;
+    }
+
+    return user;
+  }
+  private getFollowedIds = async (viewerId: string): Promise<Set<string>> => {
+    const records = await this.followRepository.getFollowingIds(
+      new Types.ObjectId(viewerId),
+    );
+    const followedIds = new Set<string>();
+    records.forEach((id) => followedIds.add(id.toString()));
+    return followedIds;
+  };
+  private async uploadUserImage(
+    file: Express.Multer.File,
+    userId: string,
+    folder: "profile-pictures" | "cover-pictures",
+    field: "profilePicture" | "coverPicture",
+  ) {
+    const key = await this.cloudProvider.uploadFile(
+      file,
+      `users/${userId}/${folder}`,
+    );
+    await this.userRepository.update({ _id: userId }, { [field]: key });
+    return key;
+  }
+  private async deleteUserMedia(
+    userId: string,
+    field: "profilePicture" | "coverPicture",
+  ) {
+    const user = await this.userRepository.getOne({ _id: userId });
+    const fileUrl = user?.[field];
+
+    if (!fileUrl) {
+      throw new AppError("No picture found to delete", 404);
+    }
+
+    await this.cloudProvider.deleteFile(fileUrl);
+    await this.userRepository.update(
+      { _id: userId },
+      { $unset: { [field]: "" } },
+    );
+  }
 }

@@ -64,10 +64,10 @@ export class UserController {
 
   updateProfile = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const updatedProfile = await this.userService.updateProfile({
-        userId: req.user!.id,
-        data: req.body,
-      });
+      const updatedProfile = await this.userService.updateProfile(
+        req.user!.id,
+        req.body,
+      );
       res.status(200).json({
         success: true,
         message: "user details updated",
